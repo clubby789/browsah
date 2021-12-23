@@ -49,3 +49,4 @@ pub struct Color {
 }
 
 mod parsing;
+pub use parsing::parse_stylesheet;
