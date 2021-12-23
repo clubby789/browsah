@@ -13,16 +13,16 @@ pub enum DOMNodeType {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+pub struct DOMElement {
+    pub tag_name: String,
+    pub attributes: DOMAttributes,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct DOMAttributes(pub HashMap<String, String>);
 
 impl DOMAttributes {
     pub fn empty() -> Self {
         Self(HashMap::new())
     }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct DOMElement {
-    pub tag_name: String,
-    pub attributes: DOMAttributes,
 }

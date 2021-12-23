@@ -1,27 +1,17 @@
 use nom::{
     branch::alt,
-    bytes::complete::{escaped, is_not, tag},
-    character::complete::{char, none_of, space1},
-    multi::separated_list1,
-    sequence::{delimited, separated_pair},
+    multi::{many0, separated_list0},
+    combinator::{opt, verify},
+    character::complete::alphanumeric1,
+    bytes::complete::{escaped, is_not, tag, take_until},
+    character::complete::{char, none_of, space0, space1},
+    sequence::{delimited, separated_pair, tuple},
     IResult,
 };
 
-use crate::html::dom::*;
+use super::dom::*;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::str::FromStr;
-
-impl FromStr for DOMAttributes {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() == 0 || s.chars().all(char::is_whitespace) {
-            return Ok(DOMAttributes::empty());
-        }
-
-        todo!()
-    }
-}
 
 impl DOMNode {
     pub fn text(data: impl Into<String>) -> Self {
@@ -38,35 +28,78 @@ impl DOMNode {
     }
 }
 
-impl FromStr for DOMNode {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.starts_with('<') {
-            return Ok(DOMNode::text(s));
-        }
-        let (node_open, s) = s.strip_prefix('<').ok_or(())?.split_once('>').ok_or(())?;
-        let (s, node_close) = s.strip_suffix('>').ok_or(())?.rsplit_once("</").ok_or(())?;
-        let open: DOMElement = node_open.parse()?;
-        if open.tag_name.as_str() != node_close {
-            return Err(());
-        }
-        if !open.tag_name.chars().all(char::is_alphanumeric)
-            || !open.tag_name.chars().next().ok_or(())?.is_alphabetic()
-        {
-            return Err(());
-        }
-        Ok(DOMNode::element(
-            open.tag_name,
-            open.attributes,
-            vec![s.parse()?],
-        ))
+/// Attempt to parse a string as a valid tag name
+fn parse_tag_name(input: &str) -> IResult<&str, &str> {
+    alphanumeric1(input)
+}
+
+/// Parse a tag in the form `</name>`, returning `name`
+fn parse_close_tag(input: &str) -> IResult<&str, &str> {
+    let (remaining, (_, name, _)) = tuple((tag("</"), parse_tag_name, char('>')))(input)?;
+    Ok((remaining, name))
+}
+
+/// Parse a tag in the form `<name attr=value ...>`, returning the [`DOMElement`]
+fn parse_open_tag(input: &str) -> IResult<&str, DOMElement> {
+    // Parse input into the opening tag and the rest
+    let parser = tuple((char('<'), space0, take_until(">"), char('>')));
+    fn check(values: &(char, &str, &str, char)) -> bool {
+        !values.2.contains("/")
     }
+    let (rest, (_, _, tag, _)) = verify(parser, check)(input)?;
+    // Parse out tag from name
+    let (remaining, name) = parse_tag_name(tag)?;
+    let attrs = if let Ok((_, (_, attrs))) = tuple((space1, all_attr_parser))(remaining) {
+        attrs
+    } else {
+        vec![]
+    };
+    Ok((
+        rest,
+        DOMElement::new(
+            name,
+            Some(DOMAttributes(
+                attrs
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect(),
+            )),
+        ),
+    ))
+}
+
+/// Parse the content between an opening and closing tag, returning the text withing
+fn parse_text(input: &str) -> IResult<&str, DOMNode> {
+    let (remaining, res) = verify(take_until("<"), |s: &str| !s.starts_with("<") && s.len() > 0)(input)?;
+    Ok((remaining, DOMNode::text(res)))
+}
+
+/// Parse the content between an opening and closing tab, returning the list of [`DOMNode`]'s within
+fn parse_dom_node_contents(input: &str) -> IResult<&str, Vec<DOMNode>> {
+    // let (remaining, node) = alt((parse_dom_node, parse_text))(input)?;
+    // Ok((remaining, vec![node]))
+    many0(alt((parse_dom_node, parse_text)))(input)
+}
+
+/// Parse a complete DOM tag, returning the [`DOMNode`]
+pub fn parse_dom_node(input: &str) -> IResult<&str, DOMNode> {
+    let parser = tuple((
+        parse_open_tag,
+        opt(parse_dom_node_contents),
+        parse_close_tag,
+    ));
+    let (remaining, (open, contents, _)) =
+        verify(parser, |(open, _, close)| &open.tag_name.as_str() == close)(input)?;
+    Ok((
+        remaining,
+        DOMNode::element(open.tag_name, open.attributes, contents.unwrap_or(vec![])),
+    ))
 }
 
 #[cfg(test)]
 #[test]
 fn test_node_parse() {
-    let data = r#"<html><div class=nothing><h1>Hello, world</h1></div></html>"#;
+    let data = r#"<html><div class=nothing><h1></h1></div></html>"#;
     let target = DOMNode::element(
         "html",
         DOMAttributes::empty(),
@@ -79,20 +112,35 @@ fn test_node_parse() {
             vec![DOMNode::element(
                 "h1",
                 DOMAttributes::empty(),
-                vec![DOMNode::text("Hello, world")],
+                vec![],
             )],
         )],
     );
-    assert_eq!(data.parse::<DOMNode>().unwrap(), target);
+
+    assert_eq!(parse_dom_node(data).unwrap(), ("", target));
+
+    let data = r#"<html><h1>Hello, world</h1></html>"#;
+    let target = DOMNode::element(
+    "html",
+    DOMAttributes::empty(),
+    vec![DOMNode::element(
+            "h1",
+            DOMAttributes::empty(),
+            vec![DOMNode::text("Hello, world")],
+        )],
+    );
+
+    assert_eq!(parse_dom_node(data).unwrap(), ("", target));
 }
 
 #[cfg(test)]
 #[test]
 fn test_parse_malformed() {
     let data = r#"<html></closing><opening></html>"#;
-    assert!(data.parse::<DOMNode>().is_err());
-    let data = r#"<123></123>"#;
-    assert!(data.parse::<DOMNode>().is_err());
+
+    assert!(parse_dom_node(data).is_err());
+    let data = r#"<---></--->"#;
+    assert!(parse_dom_node(data).is_err());
 }
 
 impl DOMElement {
@@ -104,38 +152,17 @@ impl DOMElement {
     }
 }
 
-impl FromStr for DOMElement {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some((name, attrs)) = s.split_once(' ') {
-            if let Ok((_, attributes)) = all_attr_parser(attrs) {
-                // either make all attr values optional or default to an empty string
-                let attributes: HashMap<String, String> = attributes
-                    .iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect();
-                Ok(DOMElement::new(name, Some(DOMAttributes(attributes))))
-            } else {
-                Err(())
-            }
-        } else {
-            // Tag with no spaces
-            Ok(DOMElement::new(s, None))
-        }
-    }
-}
-
 #[cfg(test)]
 #[test]
 fn test_tag_parse() {
-    let data = r#"div"#;
+    let data = r#"<div>"#;
     let target = DOMElement {
         tag_name: "div".to_string(),
         attributes: DOMAttributes(HashMap::new()),
     };
-    assert_eq!(data.parse::<DOMElement>().unwrap(), target);
+    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
 
-    let data = r#"div class=nothing"#;
+    let data = r#"<div class=nothing>"#;
     let target = DOMElement {
         tag_name: "div".to_string(),
         attributes: DOMAttributes(HashMap::from([(
@@ -143,9 +170,9 @@ fn test_tag_parse() {
             "nothing".to_string(),
         )])),
     };
-    assert_eq!(data.parse::<DOMElement>().unwrap(), target);
+    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
 
-    let data = r#"div attr1 attr2=two attr3='three' attr4="number four""#;
+    let data = r#"<div attr1 attr2=two attr3='three' attr4="number four">"#;
     let target = DOMElement {
         tag_name: "div".to_string(),
         attributes: DOMAttributes(HashMap::from([
@@ -155,7 +182,7 @@ fn test_tag_parse() {
             ("attr4".to_string(), "number four".to_string()),
         ])),
     };
-    assert_eq!(data.parse::<DOMElement>().unwrap(), target);
+    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
 }
 
 // Attribute parsing below
@@ -197,5 +224,5 @@ fn single_attr_parser(input: &str) -> IResult<&str, (&str, &str)> {
 }
 
 fn all_attr_parser(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
-    separated_list1(space1, single_attr_parser)(input)
+    separated_list0(space1, single_attr_parser)(input)
 }
