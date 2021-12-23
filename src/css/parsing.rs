@@ -1,14 +1,17 @@
-use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, take_while_m_n};
-use nom::character::complete::{char, digit0, digit1, multispace0, one_of, space0};
-use nom::combinator::{map_res, opt, verify};
-use nom::multi::{many0, separated_list0, separated_list1};
-use nom::sequence::{delimited, preceded, separated_pair, tuple};
-use nom::IResult;
+use nom::{
+    branch::alt,
+    bytes::complete::{is_not, tag, take_while_m_n},
+    character::complete::{char, digit0, digit1, multispace0, one_of, space0},
+    combinator::{map_res, opt, verify},
+    multi::{many0, separated_list0, separated_list1},
+    sequence::{delimited, preceded, separated_pair, tuple},
+    IResult
+};
 
 use super::{Color, Declaration, Rule, Selector, SimpleSelector, Stylesheet, Unit, Value};
 
-fn parse_stylesheet(input: &str) -> IResult<&str, Stylesheet> {
+/// Parse a CSS stylesheet to a [`Stylesheet`]
+pub fn parse_stylesheet(input: &str) -> IResult<&str, Stylesheet> {
     let (r, rules) = many0(tuple((parse_rule, multispace0)))(input)?;
     Ok((r, Stylesheet { rules: rules.into_iter().map(|(rule, _)| rule).collect() }))
 }

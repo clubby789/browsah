@@ -1,51 +1,51 @@
 #[derive(Debug, PartialEq)]
-struct Stylesheet {
-    pub rules: Vec<Rule>,
+pub struct Stylesheet {
+    rules: Vec<Rule>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Rule {
-    pub selectors: Vec<Selector>,
-    pub declarations: Vec<Declaration>,
+pub struct Rule {
+    selectors: Vec<Selector>,
+    declarations: Vec<Declaration>,
 }
 
 #[derive(Debug, PartialEq)]
-enum Selector {
+pub enum Selector {
     Universal,
     Simple(SimpleSelector),
 }
 
 #[derive(Debug, PartialEq, Default)]
-struct SimpleSelector {
-    pub tag_name: Option<String>,
-    pub id: Option<String>,
-    pub class: Option<String>,
+pub struct SimpleSelector {
+    tag_name: Option<String>,
+    id: Option<String>,
+    class: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Declaration {
-    pub name: String,
-    pub value: Value,
+pub struct Declaration {
+    name: String,
+    value: Value,
 }
 
 #[derive(Debug, PartialEq)]
-enum Value {
+pub enum Value {
     Keyword(String),
     Measurement(f32, Unit),
     ColorValue(Color),
 }
 
 #[derive(Debug, PartialEq)]
-enum Unit {
+pub enum Unit {
     Px,
 }
 
 #[derive(Debug, PartialEq)]
-struct Color {
+pub struct Color {
     r: u8,
     g: u8,
     b: u8,
     a: u8,
 }
 
-pub mod parsing;
+mod parsing;
