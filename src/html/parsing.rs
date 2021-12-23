@@ -1,10 +1,10 @@
 use nom::{
     branch::alt,
-    multi::{many0, separated_list0},
-    combinator::{opt, verify},
-    character::complete::alphanumeric1,
     bytes::complete::{escaped, is_not, tag, take_until},
+    character::complete::alphanumeric1,
     character::complete::{char, none_of, space0, space1},
+    combinator::{opt, verify},
+    multi::{many0, separated_list0},
     sequence::{delimited, separated_pair, tuple},
     IResult,
 };
@@ -70,7 +70,9 @@ fn parse_open_tag(input: &str) -> IResult<&str, DOMElement> {
 
 /// Parse the content between an opening and closing tag, returning the text withing
 fn parse_text(input: &str) -> IResult<&str, DOMNode> {
-    let (remaining, res) = verify(take_until("<"), |s: &str| !s.starts_with("<") && s.len() > 0)(input)?;
+    let (remaining, res) = verify(take_until("<"), |s: &str| {
+        !s.starts_with("<") && s.len() > 0
+    })(input)?;
     Ok((remaining, DOMNode::text(res)))
 }
 
@@ -109,11 +111,7 @@ fn test_node_parse() {
                 "class".to_string(),
                 "nothing".to_string(),
             )])),
-            vec![DOMNode::element(
-                "h1",
-                DOMAttributes::empty(),
-                vec![],
-            )],
+            vec![DOMNode::element("h1", DOMAttributes::empty(), vec![])],
         )],
     );
 
@@ -121,9 +119,9 @@ fn test_node_parse() {
 
     let data = r#"<html><h1>Hello, world</h1></html>"#;
     let target = DOMNode::element(
-    "html",
-    DOMAttributes::empty(),
-    vec![DOMNode::element(
+        "html",
+        DOMAttributes::empty(),
+        vec![DOMNode::element(
             "h1",
             DOMAttributes::empty(),
             vec![DOMNode::text("Hello, world")],
