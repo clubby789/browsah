@@ -1,20 +1,23 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_while_m_n},
+    bytes::complete::{is_not, tag, take_while_m_n, take_until},
     character::complete::{char, digit0, digit1, multispace0, one_of, space0},
-    combinator::{map_res, opt, verify},
+    combinator::{map_res, opt, verify, value},
     multi::{many0, separated_list0, separated_list1},
-    sequence::{delimited, preceded, separated_pair, tuple},
+    sequence::{delimited, preceded, separated_pair, tuple, pair},
     IResult
 };
 
 use super::{Color, Declaration, Rule, Selector, SimpleSelector, Stylesheet, Unit, Value};
 
+
 /// Parse a CSS stylesheet to a [`Stylesheet`]
 pub fn parse_stylesheet(input: &str) -> IResult<&str, Stylesheet> {
-    let (r, rules) = many0(tuple((parse_rule, multispace0)))(input)?;
-    Ok((r, Stylesheet { rules: rules.into_iter().map(|(rule, _)| rule).collect() }))
+    let (r, _) = skippable(input)?;
+    let (r, rules) = many0(pair(parse_rule, skippable))(r)?;
+    Ok((r, Stylesheet { rules: rules.into_iter().map(|(r, _)| r).collect() }))
 }
+
 
 #[cfg(test)]
 #[test]
@@ -44,12 +47,12 @@ fn parse_rule(input: &str) -> IResult<&str, Rule> {
         separated_list1(tuple((tag(","), space0)), parse_selector),
         space0,
     ))(input)?;
-    let (r, _) = multispace0(r)?;
+    let (r, _) = skippable(r)?;
     // TODO: Allow trailing semicolon
     let (r, declarations) = delimited(
         char('{'),
-        preceded(multispace0, separated_list0(tuple((tag(";"), multispace0)), parse_declaration)),
-        tuple((multispace0, char('}'))),
+        preceded(multispace0, separated_list0(tuple((tag(";"), skippable)), parse_declaration)),
+        tuple((skippable, char('}'))),
     )(r)?;
     Ok((
         r,
@@ -332,6 +335,57 @@ fn parse_unit(input: &str) -> IResult<&str, Unit> {
 fn parse_identifier(input: &str) -> IResult<&str, &str> {
     verify(is_not(" \t\r\n;:"), |s: &str| !s.starts_with("--"))(input)
 }
+
+fn eol_comment(i: &str) -> IResult<&str, ()>
+{
+    value(
+        (), // Output is thrown away.
+        tuple((tag("//"), is_not("\n\r"), one_of("\n\r")))
+    )(i)
+}
+
+fn multi_comment(i: &str) -> IResult<&str, ()>
+{
+    value(
+        (), // Output is thrown away.
+        tuple((
+            tag("/*"),
+            take_until("*/"),
+            tag("*/"),
+        ))
+    )(i)
+}
+
+#[cfg(test)]
+#[test]
+fn test_comments() {
+    let i = r#"/* this is
+    some stuff*/1"#;
+    let target = ((), "1");
+    assert_eq!(pair(multi_comment, digit1)(i).unwrap(), ("", target));
+
+    let i = r#"// this is come more stuff
+1"#;
+    assert_eq!(pair(eol_comment, digit1)(i).unwrap(), ("", target));
+
+    let i = r#"// this is a bunch of stuff
+    /* that can be skipped */
+
+    // right now
+1"#;
+    assert_eq!(pair(skippable, digit0)(i).unwrap(), ("", target));
+
+}
+
+fn comment(input: &str) -> IResult<&str, ()> {
+    alt((eol_comment, multi_comment))(input)
+}
+
+fn skippable(input: &str) -> IResult<&str, ()> {
+    value((), many0(alt((comment, value((), one_of(" \t\r\n"))))))(input)
+}
+
+
 
 #[cfg(test)]
 #[test]
