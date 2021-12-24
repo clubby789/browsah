@@ -1,5 +1,5 @@
-extern crate nom;
 extern crate clap;
+extern crate nom;
 extern crate reqwest;
 
 use clap::Parser;
@@ -17,8 +17,5 @@ struct Args {
 }
 
 fn main() {
-    let args = Args::parse();
-    if let Some(url) = args.css {
-        dbg!(css::parse_stylesheet(reqwest::blocking::get(url).unwrap().text().unwrap().as_str()).unwrap());
-    }
+    println!("Hello, world");
 }

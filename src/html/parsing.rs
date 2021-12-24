@@ -9,7 +9,7 @@ use nom::{
     IResult,
 };
 
-use super::{DOMNode, DOMElement, DOMNodeType, DOMAttributes};
+use super::{DOMAttributes, DOMElement, DOMNode, DOMNodeType};
 use std::collections::HashMap;
 use std::fmt::Display;
 
