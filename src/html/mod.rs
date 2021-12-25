@@ -21,6 +21,7 @@ pub struct DOMElement {
 #[derive(Debug, Eq, PartialEq)]
 pub struct DOMAttributes(HashMap<String, String>);
 
+#[allow(dead_code)]
 impl DOMAttributes {
     fn empty() -> Self {
         Self(HashMap::new())
@@ -28,3 +29,4 @@ impl DOMAttributes {
 }
 
 mod parsing;
+pub use parsing::parse_dom_node;
