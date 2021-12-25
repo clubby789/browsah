@@ -1,6 +1,6 @@
 use super::*;
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, tag_no_case, take_until, take};
+use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until};
 use nom::character::complete::{alphanumeric1, char, digit1, multispace0, multispace1, one_of};
 use nom::combinator::{map, opt, value, verify};
 use nom::multi::{many0, many1, many_m_n};
@@ -91,7 +91,8 @@ fn test_string() {
 fn ruleset(input: &str) -> IResult<&str, Ruleset> {
     let (input, selectors) = selector_group(input)?;
     let (input, _) = ws(input)?;
-    let (input, declarations) = delimited(pair(char('{'), ws), declaration_list, pair(char('}'), ws))(input)?;
+    let (input, declarations) =
+        delimited(pair(char('{'), ws), declaration_list, pair(char('}'), ws))(input)?;
     let (input, _) = ws(input)?;
     Ok((
         input,
@@ -109,7 +110,10 @@ fn test_ruleset() {
 }"#;
     let target = Ruleset {
         selectors: vec![Selector::Simple(simple_selector!(html))],
-        declarations: vec![Declaration::new("box-sizing", Value::textual(TextValue::keyword("border-box")))],
+        declarations: vec![Declaration::new(
+            "box-sizing",
+            Value::textual(TextValue::keyword("border-box")),
+        )],
     };
     assert_eq!(ruleset(i), Ok(("", target)));
 }
@@ -182,7 +186,13 @@ fn declaration_list(input: &str) -> IResult<&str, Vec<Declaration>> {
         ws,
         many0(map(tuple((char(';'), ws, opt(declaration))), |t| t.2)),
     ))(input)?;
-    Ok((input, [first].into_iter().chain(rest.into_iter().filter_map(|v| v)).collect()))
+    Ok((
+        input,
+        [first]
+            .into_iter()
+            .chain(rest.into_iter().filter_map(|v| v))
+            .collect(),
+    ))
 }
 
 /// Parse single declaration
@@ -226,7 +236,7 @@ fn term(input: &str) -> IResult<&str, Value> {
     match val.clone() {
         Value::Textual(TextValue::Keyword(s)) => Ok((input, keyword_to_value(s).unwrap_or(val))),
         Value::Function(f) => Ok((input, function_to_value(f).unwrap_or(val))),
-        _ => Ok((input, val))
+        _ => Ok((input, val)),
     }
 }
 
@@ -282,7 +292,7 @@ fn dimension_unit(input: &str) -> IResult<&str, Unit> {
     ))(input)?;
     let unit = match unit {
         "px" => Unit::Px,
-        _ => todo!()
+        _ => todo!(),
     };
     Ok((input, unit))
 }
@@ -290,11 +300,19 @@ fn hexcolor(input: &str) -> IResult<&str, Value> {
     let is_hex_str = |c: &str| c.bytes().all(|c| c.is_hex_digit());
     let hex_val = verify(take::<usize, &str, _>(2), is_hex_str);
     let (input, (_, values)) = pair(char('#'), many_m_n(3, 4, hex_val))(input)?;
-    let values: Vec<u8> = values.into_iter().map(|v| u8::from_str_radix(v, 16).expect("Passed an invalid hex value")).collect();
+    let values: Vec<u8> = values
+        .into_iter()
+        .map(|v| u8::from_str_radix(v, 16).expect("Passed an invalid hex value"))
+        .collect();
     let values: [u8; 4] = match &values.len() {
         4 => values.try_into().unwrap(),
-        3 => values.into_iter().chain([255u8]).collect::<Vec<u8>>().try_into().unwrap(),
-        _ => unreachable!()
+        3 => values
+            .into_iter()
+            .chain([255u8])
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap(),
+        _ => unreachable!(),
     };
     let col = ColorValue::new(values.as_slice());
     Ok((input, Value::Color(col)))
@@ -303,16 +321,35 @@ fn calc(_input: &str) -> IResult<&str, Value> {
     todo!()
 }
 fn function(input: &str) -> IResult<&str, Value> {
-    let (input, (name, _, _, args, _, _)) = tuple((ident, char('('), ws, expr, char(')'), ws))(input)?;
+    let (input, (name, _, _, args, _, _)) =
+        tuple((ident, char('('), ws, expr, char(')'), ws))(input)?;
     if let Value::Multiple(v) = args {
         let value = v.0;
         if value.len() == 1 {
             // Just a single value
-            Ok((input, Value::Function(FunctionValue(name, value.into_iter().map(|v| v.1).collect()))))
+            Ok((
+                input,
+                Value::Function(FunctionValue(
+                    name,
+                    value.into_iter().map(|v| v.1).collect(),
+                )),
+            ))
         } else {
-            if value[1..].iter().all(|t| if let Some(Operator::Comma) = t.0 {true} else {false}) {
+            if value[1..].iter().all(|t| {
+                if let Some(Operator::Comma) = t.0 {
+                    true
+                } else {
+                    false
+                }
+            }) {
                 // A comma-separated argument list
-                Ok((input, Value::Function(FunctionValue(name, value.into_iter().map(|v| v.1).collect()))))
+                Ok((
+                    input,
+                    Value::Function(FunctionValue(
+                        name,
+                        value.into_iter().map(|v| v.1).collect(),
+                    )),
+                ))
             } else {
                 // Not comma seperated? Bail lol
                 unimplemented!()
@@ -330,7 +367,7 @@ fn operator(input: &str) -> IResult<&str, Operator> {
         ',' => Operator::Comma,
         ' ' => Operator::Space,
         '=' => Operator::Equals,
-        _ => unreachable!()
+        _ => unreachable!(),
     };
     Ok((input, op))
 }

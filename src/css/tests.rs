@@ -1,4 +1,4 @@
-use super::spec::stylesheet;
+use super::parsing::stylesheet;
 use super::*;
 
 #[cfg(test)]
@@ -29,7 +29,10 @@ body {
         rules: vec![
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(html))],
-                declarations: vec![Declaration::new("box-sizing", Value::textual(TextValue::keyword("border-box")))],
+                declarations: vec![Declaration::new(
+                    "box-sizing",
+                    Value::textual(TextValue::keyword("border-box")),
+                )],
             },
             Ruleset {
                 selectors: vec![
@@ -37,16 +40,30 @@ body {
                     Selector::Compound(vec![simple_selector!(*), simple_selector!(:before)]),
                     Selector::Compound(vec![simple_selector!(*), simple_selector!(:after)]),
                 ],
-                declarations: vec![Declaration::new("box-sizing", Value::textual(TextValue::keyword("inherit")))],
+                declarations: vec![Declaration::new(
+                    "box-sizing",
+                    Value::textual(TextValue::keyword("inherit")),
+                )],
             },
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(html))],
-                declarations: vec![Declaration::new("-ms-text-size-adjust", Value::numeric(NumericValue::Percentage(100.0))),
-                                   Declaration::new("-webkit-text-size-adjust", Value::numeric(NumericValue::Percentage(100.0)))],
+                declarations: vec![
+                    Declaration::new(
+                        "-ms-text-size-adjust",
+                        Value::numeric(NumericValue::Percentage(100.0)),
+                    ),
+                    Declaration::new(
+                        "-webkit-text-size-adjust",
+                        Value::numeric(NumericValue::Percentage(100.0)),
+                    ),
+                ],
             },
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(body))],
-                declarations: vec![Declaration::new("margin", Value::numeric(NumericValue::Number(0.0)))],
+                declarations: vec![Declaration::new(
+                    "margin",
+                    Value::numeric(NumericValue::Number(0.0)),
+                )],
             },
         ],
     };

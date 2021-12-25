@@ -40,7 +40,7 @@ pub enum SimpleSelector {
     ID(IDSelector),
 }
 
-#[allow(dead_code)]
+#[allow(unused_macros)]
 macro_rules! simple_selector {
     (#$x:expr) => {
         SimpleSelector::ID(IDSelector(stringify!($x).to_string()))
@@ -93,7 +93,10 @@ pub struct Declaration {
 
 impl Declaration {
     pub fn new(name: impl Into<String>, value: Value) -> Self {
-        Self {name: name.into(), value}
+        Self {
+            name: name.into(),
+            value,
+        }
     }
 }
 
@@ -186,7 +189,12 @@ pub struct ColorValue {
 impl ColorValue {
     pub fn new(val: &[u8]) -> Self {
         if let [r, g, b, a] = val {
-            Self { r: *r, g: *g, b: *b, a: *a }
+            Self {
+                r: *r,
+                g: *g,
+                b: *b,
+                a: *a,
+            }
         } else {
             unreachable!()
         }
@@ -202,7 +210,7 @@ pub enum Operator {
     Slash = b'/',
     Comma = b',',
     Space = b' ',
-    Equals = b'='
+    Equals = b'=',
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -215,22 +223,32 @@ use keywords::*;
 pub fn keyword_to_value(kw: String) -> Option<Value> {
     match kw.as_str() {
         "black" => Some(Value::Color(BLACK)),
-        _ => None
+        _ => None,
     }
 }
 pub fn function_to_value(func: FunctionValue) -> Option<Value> {
     match func.0.as_str() {
         "rgb" => {
-            let mut args: Vec<u8> = func.1.iter().map(|v| if let Value::Numeric(NumericValue::Number(val)) = v {*val as u8} else {unreachable!()}).collect();
+            let mut args: Vec<u8> = func
+                .1
+                .iter()
+                .map(|v| {
+                    if let Value::Numeric(NumericValue::Number(val)) = v {
+                        *val as u8
+                    } else {
+                        unreachable!()
+                    }
+                })
+                .collect();
             args.push(255);
             Some(Value::Color(ColorValue::new(args.as_slice())))
-        },
-        _ => None
+        }
+        _ => None,
     }
 }
 
-mod spec;
+mod parsing;
 #[cfg(test)]
 mod tests;
 
-pub use spec::stylesheet;
+pub use parsing::stylesheet;
