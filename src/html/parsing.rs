@@ -1,226 +1,337 @@
 use nom::{
     branch::alt,
-    bytes::complete::{escaped, is_not, tag, take_until},
-    character::complete::alphanumeric1,
-    character::complete::{char, none_of, space0, space1},
-    combinator::{opt, verify},
-    multi::{many0, separated_list0},
-    sequence::{delimited, separated_pair, tuple},
+    bytes::complete::{tag, tag_no_case, take_until},
+    character::complete::{alphanumeric1, char, multispace0, none_of, one_of, space1},
+    combinator::{map, opt, value, verify},
+    multi::{many0, many1},
+    sequence::{delimited, preceded, tuple},
     IResult,
 };
 
-use super::{DOMAttributes, DOMElement, DOMNode, DOMNodeType};
-use std::collections::HashMap;
-use std::fmt::Display;
+use super::*;
 
-impl DOMNode {
-    pub fn text(data: impl Into<String>) -> Self {
+static VOID_ELEMENTS: &[&'static str] = &[
+    "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",
+    "meta", "param", "source", "track", "wbr",
+];
+
+#[derive(Debug, PartialEq, Clone)]
+struct Tag<'a> {
+    pub opening: bool,
+    pub name: &'a str,
+    pub attributes: DOMAttributes,
+}
+
+impl<'a> Tag<'a> {
+    pub fn opening(name: &'a str, attributes: Option<impl Into<DOMAttributes>>) -> Self {
+        let attributes = match attributes {
+            Some(a) => a.into(),
+            None => Default::default(),
+        };
         Self {
-            children: vec![],
-            node_type: DOMNodeType::Text(data.into()),
+            name,
+            attributes,
+            opening: true,
         }
     }
-    pub fn element(name: impl Display, attributes: DOMAttributes, children: Vec<DOMNode>) -> Self {
+    pub fn closing(name: &'a str) -> Self {
         Self {
-            children,
-            node_type: DOMNodeType::Element(DOMElement::new(name, Some(attributes))),
+            name,
+            attributes: Default::default(),
+            opening: false,
         }
     }
 }
 
-/// Attempt to parse a string as a valid tag name
-fn parse_tag_name(input: &str) -> IResult<&str, &str> {
+// TODO: `Document` type holding doctype
+pub fn document(input: &str) -> IResult<&str, DOMElement> {
+    let (input, _) = ws(input)?;
+    let (input, _) = opt(doctype)(input)?;
+    let (input, _) = ws(input)?;
+    let (input, root) = dom_element(input)?;
+    let (input, _) = ws(input)?;
+    Ok((input, root))
+}
+
+fn doctype(input: &str) -> IResult<&str, &str> {
+    let (input, (_, _, t, _, _)) = tuple((
+        tag_no_case("<!DOCTYPE"),
+        many1(space),
+        tag_no_case("html"),
+        many0(space),
+        char('>'),
+    ))(input)?;
+    Ok((input, t))
+}
+
+fn dom_element(input: &str) -> IResult<&str, DOMElement> {
+    let result = alt((
+        void_element,
+        /*raw_text_element, rcdata_element, foreign_element,*/ normal_element,
+    ))(input);
+    result
+}
+
+fn void_element(input: &str) -> IResult<&str, DOMElement> {
+    let (input, tag) = verify(alt((start_tag, start_void_tag)), |t| {
+        VOID_ELEMENTS.contains(&t.name.to_lowercase().as_str())
+    })(input)?;
+    Ok((
+        input,
+        DOMElement::new(tag.name, Some(tag.attributes), vec![]),
+    ))
+}
+
+#[cfg(test)]
+#[test]
+fn test_void() {
+    let i = "<br>";
+    let target = Ok((
+        "",
+        DOMElement {
+            name: "br".to_string(),
+            attributes: DOMAttributes(HashMap::new()),
+            contents: vec![],
+        },
+    ));
+    assert_eq!(void_element(i), target);
+    let i = "<br/>";
+    assert_eq!(void_element(i), target);
+    let i = "<p/>";
+    assert!(void_element(i).is_err());
+}
+
+fn normal_element(input: &str) -> IResult<&str, DOMElement> {
+    if let Ok((input, (start, contents, _))) =
+        verify(tuple((start_tag, normal_contents, end_tag)), |(s, _, e)| {
+            s.name == e.name
+        })(input)
+    {
+        return Ok((
+            input,
+            DOMElement::new(start.name, Some(start.attributes), contents),
+        ));
+    }
+    // Most browsers will correct <b>...<b> -> <b>...</b>
+    let (input, (start, contents, _)) = verify(
+        tuple((start_tag, normal_contents, start_tag)),
+        |(s, _, e)| s.name == e.name,
+    )(input)?;
+    Ok((
+        input,
+        DOMElement::new(start.name, Some(start.attributes), contents),
+    ))
+}
+
+#[cfg(test)]
+#[test]
+fn test_normal_element() {
+    let i = "<div>Test</div>";
+    let target = DOMElement::new("div", None, vec!["Test".into()]);
+    assert_eq!(normal_element(i), Ok(("", target)));
+
+    let i = "<div><h1>Head</h1><h2>Head 2</h2></div>";
+    let target = DOMElement::new(
+        "div",
+        None,
+        vec![
+            DOMElement::new("h1", None, vec!["Head".into()]).into(),
+            DOMElement::new("h2", None, vec!["Head 2".into()]).into(),
+        ],
+    );
+    assert_eq!(normal_element(i), Ok(("", target)));
+
+    let i = "<b>Uh-oh<b>";
+    let target = DOMElement::new("b", None, vec!["Uh-oh".into()]);
+    assert_eq!(normal_element(i), Ok(("", target)));
+}
+
+// Text, character references, elements, comments
+fn normal_contents(input: &str) -> IResult<&str, Vec<DOMContent>> {
+    let content_dom_element = map(dom_element, |el| el.into());
+    let possible = delimited(
+        opt(comment),
+        alt((content_dom_element, text_content)),
+        opt(comment),
+    );
+    let (input, result) = many0(possible)(input)?;
+    Ok((
+        input,
+        result
+            .into_iter()
+            .filter(|dc| {
+                if let DOMContent::Text(s) = dc {
+                    s.len() > 0
+                } else {
+                    true
+                }
+            })
+            .collect(),
+    ))
+}
+
+fn text_content(input: &str) -> IResult<&str, DOMContent> {
+    let (input, result): (&str, String) = map(
+        verify(take_until("<"), |s: &str| s.len() > 0),
+        |el: &str| {
+            // Truncate whitespace
+            el.to_string()
+                .split_whitespace()
+                .intersperse(" ")
+                .collect::<String>()
+        },
+    )(input)?;
+    Ok((input, result.into()))
+}
+
+// An opening tag <elem>
+fn start_tag(input: &str) -> IResult<&str, Tag> {
+    let (input, (name, attributes, _)) = delimited(
+        char('<'),
+        tuple((tag_name, opt(attributes), many0(space))),
+        char('>'),
+    )(input)?;
+    let attributes = attributes.unwrap_or_default();
+    Ok((input, Tag::opening(name, Some(attributes))))
+}
+
+// An opening tag with terminator <elem/> (Only for void elements)
+fn start_void_tag(input: &str) -> IResult<&str, Tag> {
+    let (input, (name, attributes, _)) = delimited(
+        char('<'),
+        tuple((tag_name, opt(attributes), many0(space))),
+        tag("/>"),
+    )(input)?;
+    let attributes = attributes.unwrap_or_default();
+    Ok((input, Tag::opening(name, Some(attributes))))
+}
+
+// A closing tag </elem>
+fn end_tag(input: &str) -> IResult<&str, Tag> {
+    let (input, (name, _)) =
+        delimited(tag("</"), tuple((tag_name, many0(space))), char('>'))(input)?;
+    Ok((input, Tag::closing(name)))
+}
+
+#[cfg(test)]
+#[test]
+fn test_end_tag() {
+    let target = Ok((
+        "",
+        Tag {
+            name: "elem",
+            opening: false,
+            attributes: Default::default(),
+        },
+    ));
+    let i = "</elem>";
+    assert_eq!(end_tag(i), target);
+    let i = "</elem   >";
+    assert_eq!(end_tag(i), target);
+    let i = "</elem disabled>";
+    assert!(end_tag(i).is_err());
+}
+
+// The name of an HTML element
+fn tag_name(input: &str) -> IResult<&str, &str> {
     alphanumeric1(input)
 }
 
-/// Parse a tag in the form `</name>`, returning `name`
-fn parse_close_tag(input: &str) -> IResult<&str, &str> {
-    let (remaining, (_, name, _)) = tuple((tag("</"), parse_tag_name, char('>')))(input)?;
-    Ok((remaining, name))
-}
-
-/// Parse a tag in the form `<name attr=value ...>`, returning the [`DOMElement`]
-fn parse_open_tag(input: &str) -> IResult<&str, DOMElement> {
-    // Parse input into the opening tag and the rest
-    let parser = tuple((char('<'), space0, take_until(">"), char('>')));
-    fn check(values: &(char, &str, &str, char)) -> bool {
-        !values.2.contains("/")
-    }
-    let (rest, (_, _, tag, _)) = verify(parser, check)(input)?;
-    // Parse out tag from name
-    let (remaining, name) = parse_tag_name(tag)?;
-    let attrs = if let Ok((_, (_, attrs))) = tuple((space1, all_attr_parser))(remaining) {
-        attrs
-    } else {
-        vec![]
-    };
-    Ok((
-        rest,
-        DOMElement::new(
-            name,
-            Some(DOMAttributes(
-                attrs
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect(),
-            )),
-        ),
-    ))
-}
-
-/// Parse the content between an opening and closing tag, returning the text withing
-fn parse_text(input: &str) -> IResult<&str, DOMNode> {
-    let (remaining, res) = verify(take_until("<"), |s: &str| {
-        !s.starts_with("<") && s.len() > 0
-    })(input)?;
-    Ok((remaining, DOMNode::text(res)))
-}
-
-/// Parse the content between an opening and closing tab, returning the list of [`DOMNode`]'s within
-fn parse_dom_node_contents(input: &str) -> IResult<&str, Vec<DOMNode>> {
-    // let (remaining, node) = alt((parse_dom_node, parse_text))(input)?;
-    // Ok((remaining, vec![node]))
-    many0(alt((parse_dom_node, parse_text)))(input)
-}
-
-/// Parse a complete DOM tag, returning the [`DOMNode`]
-pub fn parse_dom_node(input: &str) -> IResult<&str, DOMNode> {
-    let parser = tuple((
-        parse_open_tag,
-        opt(parse_dom_node_contents),
-        parse_close_tag,
-    ));
-    let (remaining, (open, contents, _)) =
-        verify(parser, |(open, _, close)| &open.tag_name.as_str() == close)(input)?;
-    Ok((
-        remaining,
-        DOMNode::element(open.tag_name, open.attributes, contents.unwrap_or(vec![])),
-    ))
+// A list of attributes
+fn attributes(input: &str) -> IResult<&str, DOMAttributes> {
+    let (input, attrs) = many0(preceded(space1, attribute))(input)?;
+    let attrs: HashMap<String, String> = attrs.into_iter().collect();
+    Ok((input, DOMAttributes(attrs)))
 }
 
 #[cfg(test)]
 #[test]
-fn test_node_parse() {
-    let data = r#"<html><div class=nothing><h1></h1></div></html>"#;
-    let target = DOMNode::element(
-        "html",
-        DOMAttributes::empty(),
-        vec![DOMNode::element(
-            "div",
-            DOMAttributes(HashMap::from([(
-                "class".to_string(),
-                "nothing".to_string(),
-            )])),
-            vec![DOMNode::element("h1", DOMAttributes::empty(), vec![])],
-        )],
+fn test_attributes() {
+    let i = r#" disabled attr=value attr2='value' attr3="multiple values""#;
+    let attrs = DOMAttributes(HashMap::from([
+        ("disabled".to_string(), "".to_string()),
+        ("attr".to_string(), "value".to_string()),
+        ("attr2".to_string(), "value".to_string()),
+        ("attr3".to_string(), "multiple values".to_string()),
+    ]));
+    assert_eq!(attributes(i), Ok(("", attrs)));
+}
+
+// A single attribute
+fn attribute(input: &str) -> IResult<&str, (String, String)> {
+    let empty = map(attribute_name, |n| (n.to_string(), "".to_string()));
+    let unquoted = map(
+        tuple((
+            attribute_name,
+            multispace0,
+            char('='),
+            multispace0,
+            many1(none_of(" \t\r\n\0\"'>=")),
+        )),
+        |(name, .., value)| (name.to_string(), value.into_iter().collect()),
     );
-
-    assert_eq!(parse_dom_node(data).unwrap(), ("", target));
-
-    let data = r#"<html><h1>Hello, world</h1></html>"#;
-    let target = DOMNode::element(
-        "html",
-        DOMAttributes::empty(),
-        vec![DOMNode::element(
-            "h1",
-            DOMAttributes::empty(),
-            vec![DOMNode::text("Hello, world")],
-        )],
+    let single_quoted = map(
+        tuple((
+            attribute_name,
+            multispace0,
+            char('='),
+            multispace0,
+            delimited(char('\''), take_until("'"), char('\'')),
+        )),
+        |(name, .., value)| (name.to_string(), value.to_string()),
     );
+    let double_quoted = map(
+        tuple((
+            attribute_name,
+            multispace0,
+            char('='),
+            multispace0,
+            delimited(char('"'), take_until("\""), char('"')),
+        )),
+        |(name, .., value)| (name.to_string(), value.to_string()),
+    );
+    alt((single_quoted, double_quoted, unquoted, empty))(input)
+}
 
-    assert_eq!(parse_dom_node(data).unwrap(), ("", target));
+fn attribute_name(input: &str) -> IResult<&str, String> {
+    map(many1(none_of(" \t\r\n\0\"'>=")), |x| {
+        x.into_iter().collect()
+    })(input)
 }
 
 #[cfg(test)]
 #[test]
-fn test_parse_malformed() {
-    let data = r#"<html></closing><opening></html>"#;
-
-    assert!(parse_dom_node(data).is_err());
-    let data = r#"<---></--->"#;
-    assert!(parse_dom_node(data).is_err());
+fn test_attribute() {
+    let i = r#"disabled"#;
+    assert_eq!(
+        attribute(i),
+        Ok(("", ("disabled".to_string(), "".to_string())))
+    );
+    let i = r#"attr=value"#;
+    assert_eq!(
+        attribute(i),
+        Ok(("", ("attr".to_string(), "value".to_string())))
+    );
+    let i = r#"attr='value'"#;
+    assert_eq!(
+        attribute(i),
+        Ok(("", ("attr".to_string(), "value".to_string())))
+    );
+    let i = r#"attr="multiple words""#;
+    assert_eq!(
+        attribute(i),
+        Ok(("", ("attr".to_string(), "multiple words".to_string())))
+    );
 }
 
-impl DOMElement {
-    pub fn new(name: impl Display, attributes: Option<DOMAttributes>) -> Self {
-        Self {
-            tag_name: name.to_string(),
-            attributes: attributes.unwrap_or(DOMAttributes(HashMap::new())),
-        }
-    }
+fn comment(input: &str) -> IResult<&str, ()> {
+    value((), delimited(tag("<!--"), take_until("-->"), tag("-->")))(input)
 }
 
-#[cfg(test)]
-#[test]
-fn test_tag_parse() {
-    let data = r#"<div>"#;
-    let target = DOMElement {
-        tag_name: "div".to_string(),
-        attributes: DOMAttributes(HashMap::new()),
-    };
-    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
-
-    let data = r#"<div class=nothing>"#;
-    let target = DOMElement {
-        tag_name: "div".to_string(),
-        attributes: DOMAttributes(HashMap::from([(
-            "class".to_string(),
-            "nothing".to_string(),
-        )])),
-    };
-    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
-
-    let data = r#"<div attr1 attr2=two attr3='three' attr4="number four">"#;
-    let target = DOMElement {
-        tag_name: "div".to_string(),
-        attributes: DOMAttributes(HashMap::from([
-            ("attr1".to_string(), "".to_string()),
-            ("attr2".to_string(), "two".to_string()),
-            ("attr3".to_string(), "three".to_string()),
-            ("attr4".to_string(), "number four".to_string()),
-        ])),
-    };
-    assert_eq!(parse_open_tag(data).unwrap(), ("", target));
+fn space(input: &str) -> IResult<&str, ()> {
+    value((), one_of(" \t\r\n"))(input)
 }
 
-// Attribute parsing below
-
-fn parse_single_quoted(input: &str) -> IResult<&str, &str> {
-    let esc = escaped(none_of("\\\'"), '\\', tag("'"));
-    let esc_or_empty = alt((esc, tag("")));
-    let res = delimited(tag("'"), esc_or_empty, tag("'"))(input)?;
-    Ok(res)
-}
-
-fn parse_double_quoted(input: &str) -> IResult<&str, &str> {
-    let esc = escaped(none_of("\\\""), '\\', tag("\""));
-    let esc_or_empty = alt((esc, tag("")));
-    let res = delimited(tag("\""), esc_or_empty, tag("\""))(input)?;
-    Ok(res)
-}
-
-fn parse_unquoted(input: &str) -> IResult<&str, &str> {
-    is_not(" \"'=<>`")(input)
-}
-
-fn value_parser(input: &str) -> IResult<&str, &str> {
-    alt((parse_single_quoted, parse_double_quoted, parse_unquoted))(input)
-}
-
-fn name_parser(input: &str) -> IResult<&str, &str> {
-    is_not(" \"'>/=")(input)
-}
-
-fn single_attr_parser(input: &str) -> IResult<&str, (&str, &str)> {
-    let mut key_value = separated_pair(name_parser, char('='), value_parser);
-    if let Ok((r, (k, v))) = key_value(input) {
-        Ok((r, (k, v)))
-    } else {
-        let (r, res) = name_parser(input)?;
-        Ok((r, (res, "")))
-    }
-}
-
-fn all_attr_parser(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
-    separated_list0(space1, single_attr_parser)(input)
+fn ws(input: &str) -> IResult<&str, ()> {
+    alt((comment, value((), many0(space))))(input)
 }

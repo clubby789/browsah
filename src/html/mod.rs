@@ -1,32 +1,69 @@
 use std::collections::HashMap;
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct DOMNode {
-    children: Vec<DOMNode>,
-    node_type: DOMNodeType,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum DOMNodeType {
-    Element(DOMElement),
-    Text(String),
-}
-
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DOMElement {
-    tag_name: String,
+    name: String,
     attributes: DOMAttributes,
+    contents: Vec<DOMContent>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+impl DOMElement {
+    pub fn void(name: impl Into<String>, attributes: Option<DOMAttributes>) -> Self {
+        Self {
+            name: name.into().to_lowercase(),
+            attributes: attributes.unwrap_or_default(),
+            contents: Default::default(),
+        }
+    }
+    pub fn new(
+        name: impl Into<String>,
+        attributes: Option<DOMAttributes>,
+        contents: Vec<DOMContent>,
+    ) -> Self {
+        Self {
+            name: name.into().to_lowercase(),
+            attributes: attributes.unwrap_or_default(),
+            contents,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DOMAttributes(HashMap<String, String>);
 
-#[allow(dead_code)]
-impl DOMAttributes {
-    fn empty() -> Self {
-        Self(HashMap::new())
+#[allow(unused_macros)]
+macro_rules! attributes {
+    ($($name:expr => $value:expr),*) => {
+        DOMAttributes(HashMap::from([
+            $((stringify!($name).replace(" ", ""), stringify!($value).replace(" ", "")))*
+        ]))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DOMContent {
+    Text(String),
+    Element(DOMElement),
+}
+
+impl Into<DOMContent> for String {
+    fn into(self) -> DOMContent {
+        DOMContent::Text(self)
+    }
+}
+impl Into<DOMContent> for &str {
+    fn into(self) -> DOMContent {
+        DOMContent::Text(self.into())
+    }
+}
+impl Into<DOMContent> for DOMElement {
+    fn into(self) -> DOMContent {
+        DOMContent::Element(self)
     }
 }
 
 mod parsing;
-pub use parsing::parse_dom_node;
+#[cfg(test)]
+mod tests;
+
+pub use parsing::document;
