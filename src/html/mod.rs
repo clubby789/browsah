@@ -45,7 +45,6 @@ pub enum DOMContent {
     Text(String),
     Element(DOMElement),
 }
-
 impl Into<DOMContent> for String {
     fn into(self) -> DOMContent {
         DOMContent::Text(self)

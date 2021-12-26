@@ -1,10 +1,10 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case, take_until},
-    character::complete::{alphanumeric1, char, multispace0, none_of, one_of, space1},
+    character::complete::{alphanumeric1, anychar, char, multispace0, none_of, one_of, space1},
     combinator::{map, opt, value, verify},
-    multi::{many0, many1},
-    sequence::{delimited, preceded, tuple},
+    multi::{many0, many1, many_till},
+    sequence::{delimited, preceded, terminated, tuple},
     IResult,
 };
 
@@ -14,6 +14,7 @@ static VOID_ELEMENTS: &[&'static str] = &[
     "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",
     "meta", "param", "source", "track", "wbr",
 ];
+static RAW_TEXT_ELEMENTS: &[&'static str] = &["script", "style"];
 
 #[derive(Debug, PartialEq, Clone)]
 struct Tag<'a> {
@@ -67,7 +68,8 @@ fn doctype(input: &str) -> IResult<&str, &str> {
 fn dom_element(input: &str) -> IResult<&str, DOMElement> {
     let result = alt((
         void_element,
-        /*raw_text_element, rcdata_element, foreign_element,*/ normal_element,
+        raw_text_element,
+        normal_element, /* rcdata_element, foreign_element*/
     ))(input);
     result
 }
@@ -182,6 +184,47 @@ fn text_content(input: &str) -> IResult<&str, DOMContent> {
         },
     )(input)?;
     Ok((input, result.into()))
+}
+
+// <script> and <style>
+fn raw_text_element(input: &str) -> IResult<&str, DOMElement> {
+    let (input, start) = verify(start_tag, |t| {
+        RAW_TEXT_ELEMENTS.contains(&t.name.to_lowercase().as_str())
+    })(input)?;
+    let (input, content) = map(many_till(anychar, named_end_tag(start.name)), |(v, _)| {
+        v.into_iter().collect::<String>()
+    })(input)?;
+    Ok((
+        input,
+        DOMElement::new(start.name, Some(start.attributes), vec![content.into()]),
+    ))
+}
+
+// Create a parser that searches  for a named closing tag
+// Anonymous lifetime to capture 'name'
+fn named_end_tag(name: &str) -> impl FnMut(&str) -> IResult<&str, &str> + '_ {
+    move |input: &str| {
+        delimited(
+            tag("</"),
+            terminated(tag_no_case(name), many0(space)),
+            char('>'),
+        )(input)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_raw_text() {
+    let i = r#"<script>let one = 2;</script>"#;
+    let target = DOMElement::new("script", None, vec!["let one = 2;".into()]);
+    assert_eq!(raw_text_element(i), Ok(("", target)));
+
+    let i = r#"<script>let one = "</two>";</script>"#;
+    let target = DOMElement::new("script", None, vec![r#"let one = "</two>";"#.into()]);
+    assert_eq!(raw_text_element(i), Ok(("", target)));
+
+    let i = r#"<style>html {}</script>"#;
+    assert!(raw_text_element(i).is_err());
 }
 
 // An opening tag <elem>
