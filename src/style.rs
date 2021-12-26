@@ -1,27 +1,29 @@
+use super::html::DOMElement;
+use crate::css::{Ruleset, Stylesheet, Value};
+use crate::html::DOMContent;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::css::{Declaration, Ruleset, Stylesheet, Value};
-use crate::html::{DOMAttributes, DOMContent};
-use super::html::DOMElement;
 
 #[derive(Debug)]
 pub struct StyledElement {
     // The attribute name -> the value along with the specificity of the selector
     pub styles: HashMap<String, (Value, Specificity)>,
-    pub content: Vec<StyledContent>
+    pub content: Vec<StyledContent>,
 }
 
 #[derive(Debug)]
 pub enum StyledContent {
     Element(StyledElement),
-    Text(String)
+    Text(String),
 }
 
 impl StyledElement {
     pub fn insert(&mut self, key: String, value: Value, spec: Specificity) {
         // Insert the new declaration only if the attribute is not specified *or* the specificity is lower
         if let Some(&(_, existing)) = self.styles.get(&key) {
-            if spec >= existing {self.styles.insert(key, (value, spec));};
+            if spec >= existing {
+                self.styles.insert(key, (value, spec));
+            };
         } else {
             self.styles.insert(key, (value, spec));
         }
@@ -57,13 +59,16 @@ impl From<DOMContent> for StyledContent {
     fn from(content: DOMContent) -> Self {
         match content {
             DOMContent::Text(s) => StyledContent::Text(s),
-            DOMContent::Element(e) => StyledContent::Element(e.into())
+            DOMContent::Element(e) => StyledContent::Element(e.into()),
         }
     }
 }
 impl From<DOMElement> for StyledElement {
     fn from(element: DOMElement) -> Self {
-        Self { styles: Default::default(), content: element.contents.into_iter().map(|e| e.into()).collect() }
+        Self {
+            styles: Default::default(),
+            content: element.contents.into_iter().map(|e| e.into()).collect(),
+        }
     }
 }
 

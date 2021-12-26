@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stylesheet {
     pub rules: Vec<Ruleset>,
@@ -18,7 +16,7 @@ pub enum Selector {
     Combinator(Box<Selector>, Combinator, Box<Selector>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Combinator {
     // ( )
     Descendant,
@@ -63,6 +61,7 @@ macro_rules! simple_selector {
 #[derive(Debug, PartialEq, Clone)]
 pub struct TypeSelector(String);
 // [att]
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum AttributeSelector {
     // [att]
@@ -91,6 +90,7 @@ pub struct Declaration {
     value: Value,
 }
 
+#[allow(dead_code)]
 impl Declaration {
     pub fn new(name: impl Into<String>, value: Value) -> Self {
         Self {
@@ -100,6 +100,7 @@ impl Declaration {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Textual(TextValue),
@@ -112,6 +113,7 @@ pub enum Value {
     Position,
 }
 
+#[allow(dead_code)]
 impl Value {
     pub fn textual(v: impl Into<TextValue>) -> Self {
         Self::Textual(v.into())
@@ -140,6 +142,7 @@ pub enum TextValue {
     Url(String),
 }
 
+#[allow(dead_code)]
 impl TextValue {
     pub fn keyword(v: impl Into<String>) -> Self {
         Self::Keyword(v.into())
@@ -153,11 +156,11 @@ impl TextValue {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub enum NumericValue {
-    Integer(isize),
     Number(f64),
     Percentage(f64),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Unit {
     Cm,

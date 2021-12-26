@@ -4,14 +4,15 @@ extern crate clap;
 extern crate nom;
 use clap::Parser;
 
-use std::fs;
 use crate::style::construct_style_tree;
+use std::fs;
 
-/// Parsing of HTML to DOM
-mod html;
 /// Parsing of CSS
 mod css;
+/// Parsing of HTML to DOM
+mod html;
 /// Application of CSS styles to HTML
+#[allow(dead_code, unused_variables)]
 mod style;
 
 #[derive(Parser, Debug)]
@@ -43,7 +44,9 @@ fn main() {
             eprintln!("Could not parse: {}", remaining);
         }
         Some(parsed)
-    } else {None};
+    } else {
+        None
+    };
     if let Some(dom) = html {
         if let Some(ss) = css {
             let tree = construct_style_tree(dom, ss);
