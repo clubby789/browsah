@@ -2,13 +2,13 @@
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stylesheet {
-    rules: Vec<Ruleset>,
+    pub rules: Vec<Ruleset>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Ruleset {
-    selectors: Vec<Selector>,
-    declarations: Vec<Declaration>,
+    pub selectors: Vec<Selector>,
+    pub declarations: Vec<Declaration>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

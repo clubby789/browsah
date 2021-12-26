@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DOMElement {
-    name: String,
-    attributes: DOMAttributes,
-    contents: Vec<DOMContent>,
+    pub name: String,
+    pub attributes: DOMAttributes,
+    pub contents: Vec<DOMContent>,
 }
 
 impl DOMElement {
