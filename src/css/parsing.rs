@@ -262,35 +262,35 @@ fn dimension(input: &str) -> IResult<&str, Value> {
 }
 fn dimension_unit(input: &str) -> IResult<&str, Unit> {
     let abs = alt((
-        tag("px"),
-        tag("cm"),
-        tag("mm"),
-        tag("in"),
-        tag("pt"),
-        tag("pc"),
-        tag("q"),
+        tag_no_case("px"),
+        tag_no_case("cm"),
+        tag_no_case("mm"),
+        tag_no_case("in"),
+        tag_no_case("pt"),
+        tag_no_case("pc"),
+        tag_no_case("q"),
     ));
-    let font_rel = alt((tag("em"), tag("ex"), tag("ch"), tag("rem")));
-    let vp_rel = alt((tag("vw"), tag("vh"), tag("vmin"), tag("vmax")));
+    let font_rel = alt((tag_no_case("em"), tag_no_case("ex"), tag_no_case("ch"), tag_no_case("rem")));
+    let vp_rel = alt((tag_no_case("vw"), tag_no_case("vh"), tag_no_case("vmin"), tag_no_case("vmax")));
     let length = alt((abs, font_rel, vp_rel));
     let (input, unit): (&str, &str) = alt((
         length,
-        tag("ms"),
-        tag("s"),
+        tag_no_case("ms"),
+        tag_no_case("s"),
         // Freq
-        tag("hz"),
-        tag("khz"),
+        tag_no_case("hz"),
+        tag_no_case("khz"),
         // Resolution
-        tag("dpi"),
-        tag("dpcm"),
-        tag("dppx"),
+        tag_no_case("dpi"),
+        tag_no_case("dpcm"),
+        tag_no_case("dppx"),
         // Angle
-        tag("deg"),
-        tag("rad"),
-        tag("grad"),
-        tag("turn"),
+        tag_no_case("deg"),
+        tag_no_case("rad"),
+        tag_no_case("grad"),
+        tag_no_case("turn"),
     ))(input)?;
-    let unit = match unit {
+    let unit = match unit.to_lowercase().as_str() {
         "px" => Unit::Px,
         _ => todo!(),
     };
