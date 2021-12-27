@@ -10,11 +10,11 @@ use nom::{
 
 use super::*;
 
-static VOID_ELEMENTS: &[&'static str] = &[
+static VOID_ELEMENTS: &[&str] = &[
     "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link",
     "meta", "param", "source", "track", "wbr",
 ];
-static RAW_TEXT_ELEMENTS: &[&'static str] = &["script", "style"];
+static RAW_TEXT_ELEMENTS: &[&str] = &["script", "style"];
 
 #[derive(Debug, PartialEq, Clone)]
 struct Tag<'a> {
@@ -66,12 +66,11 @@ fn doctype(input: &str) -> IResult<&str, &str> {
 }
 
 fn dom_element(input: &str) -> IResult<&str, DOMElement> {
-    let result = alt((
+    alt((
         void_element,
         raw_text_element,
         normal_element, /* rcdata_element, foreign_element*/
-    ))(input);
-    result
+    ))(input)
 }
 
 fn void_element(input: &str) -> IResult<&str, DOMElement> {
@@ -163,7 +162,7 @@ fn normal_contents(input: &str) -> IResult<&str, Vec<DOMContent>> {
             .into_iter()
             .filter(|dc| {
                 if let DOMContent::Text(s) = dc {
-                    s.len() > 0
+                    !s.is_empty()
                 } else {
                     true
                 }
@@ -174,7 +173,7 @@ fn normal_contents(input: &str) -> IResult<&str, Vec<DOMContent>> {
 
 fn text_content(input: &str) -> IResult<&str, DOMContent> {
     let (input, result): (&str, String) = map(
-        verify(take_until("<"), |s: &str| s.len() > 0),
+        verify(take_until("<"), |s: &str| !s.is_empty()),
         |el: &str| {
             // Truncate whitespace
             el.to_string()
@@ -302,7 +301,7 @@ fn test_attributes() {
 
 // A single attribute
 fn attribute(input: &str) -> IResult<&str, (String, String)> {
-    let empty = map(attribute_name, |n| (n.to_string(), "".to_string()));
+    let empty = map(attribute_name, |n| (n, "".to_string()));
     let unquoted = map(
         tuple((
             attribute_name,
@@ -311,7 +310,7 @@ fn attribute(input: &str) -> IResult<&str, (String, String)> {
             multispace0,
             many1(none_of(" \t\r\n\0\"'>=")),
         )),
-        |(name, .., value)| (name.to_string(), value.into_iter().collect()),
+        |(name, .., value)| (name, value.into_iter().collect()),
     );
     let single_quoted = map(
         tuple((
@@ -321,7 +320,7 @@ fn attribute(input: &str) -> IResult<&str, (String, String)> {
             multispace0,
             delimited(char('\''), take_until("'"), char('\'')),
         )),
-        |(name, .., value)| (name.to_string(), value.to_string()),
+        |(name, .., value)| (name, value.to_string()),
     );
     let double_quoted = map(
         tuple((
@@ -331,7 +330,7 @@ fn attribute(input: &str) -> IResult<&str, (String, String)> {
             multispace0,
             delimited(char('"'), take_until("\""), char('"')),
         )),
-        |(name, .., value)| (name.to_string(), value.to_string()),
+        |(name, .., value)| (name, value.to_string()),
     );
     alt((single_quoted, double_quoted, unquoted, empty))(input)
 }

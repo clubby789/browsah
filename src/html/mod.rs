@@ -8,13 +8,6 @@ pub struct DOMElement {
 }
 
 impl DOMElement {
-    pub fn void(name: impl Into<String>, attributes: Option<DOMAttributes>) -> Self {
-        Self {
-            name: name.into().to_lowercase(),
-            attributes: attributes.unwrap_or_default(),
-            contents: Default::default(),
-        }
-    }
     pub fn new(
         name: impl Into<String>,
         attributes: Option<DOMAttributes>,
@@ -45,19 +38,19 @@ pub enum DOMContent {
     Text(String),
     Element(DOMElement),
 }
-impl Into<DOMContent> for String {
-    fn into(self) -> DOMContent {
-        DOMContent::Text(self)
+impl From<String> for DOMContent {
+    fn from(s: String) -> DOMContent {
+        DOMContent::Text(s)
     }
 }
-impl Into<DOMContent> for &str {
-    fn into(self) -> DOMContent {
-        DOMContent::Text(self.into())
+impl From<&str> for DOMContent {
+    fn from(s: &str) -> DOMContent {
+        DOMContent::Text(s.into())
     }
 }
-impl Into<DOMContent> for DOMElement {
-    fn into(self) -> DOMContent {
-        DOMContent::Element(self)
+impl From<DOMElement> for DOMContent {
+    fn from(e: DOMElement) -> DOMContent {
+        DOMContent::Element(e)
     }
 }
 

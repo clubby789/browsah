@@ -29,7 +29,7 @@ fn main() {
     let html = if let Some(file) = args.html {
         let data = fs::read_to_string(file).unwrap();
         let (remaining, parsed) = html::document(data.as_str()).expect("Could not parse HTML");
-        if remaining.len() > 0 {
+        if !remaining.is_empty() {
             eprintln!("Could not parse: {}", remaining);
         }
         Some(parsed)
@@ -40,7 +40,7 @@ fn main() {
     let css = if let Some(file) = args.css {
         let data = fs::read_to_string(file).unwrap();
         let (remaining, parsed) = css::stylesheet(data.as_str()).expect("Could not parse CSS");
-        if remaining.len() > 0 {
+        if !remaining.is_empty() {
             eprintln!("Could not parse: {}", remaining);
         }
         Some(parsed)
@@ -54,9 +54,7 @@ fn main() {
         } else {
             dbg!(dom);
         }
-    } else {
-        if let Some(ss) = css {
-            dbg!(ss);
-        }
+    } else if let Some(ss) = css {
+        dbg!(ss);
     }
 }

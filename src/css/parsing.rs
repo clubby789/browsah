@@ -15,7 +15,6 @@ pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
     let (input, _) = many0(pair(import, ws))(input)?;
     let (input, rules) = many0(ruleset)(input)?;
     let (input, _) = ws(input)?;
-    // let rules = rules.into_iter().map(|r| r.0).collect();
     Ok((input, Stylesheet { rules }))
 }
 
@@ -268,10 +267,7 @@ fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
     let (input, (first, rest)) = tuple((element_or_universal, many0(selectors)))(input)?;
     let mut selectors = vec![first];
     selectors.extend(rest.iter().map(|(a, b)| format!("{}{}", a, b)));
-    Ok((
-        input,
-        selectors.into_iter().map(|s| simple_selector(s)).collect(),
-    ))
+    Ok((input, selectors.into_iter().map(simple_selector).collect()))
 }
 
 fn simple_selector(input: String) -> SimpleSelector {
@@ -299,7 +295,7 @@ fn declaration_list(input: &str) -> IResult<&str, Vec<Declaration>> {
         input,
         [first]
             .into_iter()
-            .chain(rest.into_iter().filter_map(|v| v))
+            .chain(rest.into_iter().flatten())
             .collect(),
     ))
 }
@@ -319,7 +315,7 @@ fn property(input: &str) -> IResult<&str, String> {
 /// Parse expression
 fn expr(input: &str) -> IResult<&str, Value> {
     let (input, (result, others)) = pair(term, many0(pair(opt(operator), term)))(input)?;
-    if others.len() > 0 {
+    if !others.is_empty() {
         let all = [(None, result)].into_iter().chain(others).collect();
         Ok((input, Value::Multiple(MultiValue(all))))
     } else {
@@ -453,26 +449,21 @@ fn function(input: &str) -> IResult<&str, Value> {
                     value.into_iter().map(|v| v.1).collect(),
                 )),
             ))
+        } else if value[1..]
+            .iter()
+            .all(|t| matches!(t.0, Some(Operator::Comma)))
+        {
+            // A comma-separated argument list
+            Ok((
+                input,
+                Value::Function(FunctionValue(
+                    name,
+                    value.into_iter().map(|v| v.1).collect(),
+                )),
+            ))
         } else {
-            if value[1..].iter().all(|t| {
-                if let Some(Operator::Comma) = t.0 {
-                    true
-                } else {
-                    false
-                }
-            }) {
-                // A comma-separated argument list
-                Ok((
-                    input,
-                    Value::Function(FunctionValue(
-                        name,
-                        value.into_iter().map(|v| v.1).collect(),
-                    )),
-                ))
-            } else {
-                // Not comma seperated? Bail lol
-                unimplemented!()
-            }
+            // Not comma separated? Bail lol
+            unimplemented!()
         }
     } else {
         Ok((input, Value::Function(FunctionValue(name, vec![args]))))
