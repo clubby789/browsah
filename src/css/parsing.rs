@@ -176,10 +176,10 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
         if v.len() == 3 {
             match v {
                 [Temp::Selector(s1), Temp::Combinator(c), Temp::Selector(s2)] => {
-                    Selector::Combinator(
-                        Box::new(Selector::Compound(s1.clone())),
+                    combinator_selector!(
+                        Selector::Compound(s1.clone()),
                         *c,
-                        Box::new(Selector::Compound(s2.clone())),
+                        Selector::Compound(s2.clone())
                     )
                 }
                 _ => unreachable!(),
@@ -187,11 +187,9 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
         } else {
             let (start, rest) = v.split_at(2);
             match start {
-                [Temp::Selector(s1), Temp::Combinator(c)] => Selector::Combinator(
-                    Box::new(Selector::Compound(s1.clone())),
-                    *c,
-                    Box::new(peeler(rest)),
-                ),
+                [Temp::Selector(s1), Temp::Combinator(c)] => {
+                    combinator_selector!(Selector::Compound(s1.clone()), *c, peeler(rest))
+                }
                 _ => unreachable!(),
             }
         }
@@ -203,46 +201,45 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
 #[test]
 fn test_combinator_selectors() {
     let i = "div > p";
-    let target = Selector::Combinator(
-        Box::new(Selector::Compound(vec![simple_selector!(div)])),
+    let target = combinator_selector!(
+        compound_selector![simple_selector!(div)],
         Combinator::Child,
-        Box::new(Selector::Compound(vec![simple_selector!(p)])),
+        compound_selector![simple_selector!(p)]
     );
     assert_eq!(selector(i), Ok(("", target)));
-
     let i = "div + p";
-    let target = Selector::Combinator(
-        Box::new(Selector::Compound(vec![simple_selector!(div)])),
+    let target = combinator_selector!(
+        compound_selector![simple_selector!(div)],
         Combinator::NextSibling,
-        Box::new(Selector::Compound(vec![simple_selector!(p)])),
+        compound_selector![simple_selector!(p)]
     );
     assert_eq!(selector(i), Ok(("", target)));
 
     let i = "div ~ p";
-    let target = Selector::Combinator(
-        Box::new(Selector::Compound(vec![simple_selector!(div)])),
+    let target = combinator_selector!(
+        compound_selector![simple_selector!(div)],
         Combinator::SubsequentSibling,
-        Box::new(Selector::Compound(vec![simple_selector!(p)])),
+        compound_selector![simple_selector!(p)]
     );
     assert_eq!(selector(i), Ok(("", target)));
 
     let i = "div p";
-    let target = Selector::Combinator(
-        Box::new(Selector::Compound(vec![simple_selector!(div)])),
+    let target = combinator_selector!(
+        compound_selector![simple_selector!(div)],
         Combinator::Descendant,
-        Box::new(Selector::Compound(vec![simple_selector!(p)])),
+        compound_selector![simple_selector!(p)]
     );
     assert_eq!(selector(i), Ok(("", target)));
 
     let i = "a b > c";
-    let target = Selector::Combinator(
-        Box::new(Selector::Compound(vec![simple_selector!(a)])),
+    let target = combinator_selector!(
+        compound_selector![simple_selector!(a)],
         Combinator::Descendant,
-        Box::new(Selector::Combinator(
-            Box::new(Selector::Compound(vec![simple_selector!(b)])),
+        combinator_selector!(
+            compound_selector![simple_selector!(b)],
             Combinator::Child,
-            Box::new(Selector::Compound(vec![simple_selector!(c)])),
-        )),
+            compound_selector![simple_selector!(c)]
+        )
     );
     assert_eq!(selector(i), Ok(("", target)));
 }

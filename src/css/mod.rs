@@ -57,6 +57,18 @@ macro_rules! simple_selector {
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! compound_selector {
+    ($($sel:expr),*) => {Selector::Compound(vec![$($sel),*])}
+}
+
+#[allow(unused_macros)]
+macro_rules! combinator_selector {
+    ($l:expr,$c:expr,$r:expr) => {
+        Selector::Combinator($l.into(), $c, $r.into())
+    };
+}
+
 // h1
 #[derive(Debug, PartialEq, Clone)]
 pub struct TypeSelector(String);
