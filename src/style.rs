@@ -211,14 +211,14 @@ impl StyledElement {
 
     fn does_simple_selector_apply(&self, selector: &SimpleSelector) -> bool {
         match selector {
-            SimpleSelector::Type(name) => self.name == name.0,
+            SimpleSelector::Type(name) => &self.name == name,
             SimpleSelector::Universal => true,
             SimpleSelector::Attribute(_) => todo!(),
             SimpleSelector::Class(name) => self
                 .attributes
                 .0
                 .get("class")
-                .map(|c: &String| c.split_whitespace().any(|c| c == name.0.as_str()))
+                .map(|c: &String| c.split_whitespace().any(|c| c == name.as_str()))
                 .unwrap_or(false),
             SimpleSelector::PseudoClass(_) => todo!(),
             SimpleSelector::ID(_) => todo!(),
@@ -242,7 +242,7 @@ impl StyledElement {
 #[cfg(test)]
 #[test]
 fn test_does_apply() {
-    use crate::{html::{attributes}, css::{compound_selector, simple_selector, ClassSelector, TypeSelector}};
+    use crate::{html::{attributes}, css::{compound_selector, simple_selector}};
     let dom: StyledElement = DOMElement::new("div", None, vec![]).into();
     let style: Selector = Selector::Simple(simple_selector!(div));
     assert!(dom.does_rule_apply(&style));

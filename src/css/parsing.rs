@@ -274,12 +274,12 @@ fn simple_selector(input: String) -> SimpleSelector {
     let mut it = input.chars();
     #[allow(unreachable_code)]
     match it.next().unwrap() {
-        '#' => SimpleSelector::ID(IDSelector(it.collect())),
-        '.' => SimpleSelector::Class(ClassSelector(it.collect())),
+        '#' => SimpleSelector::ID(it.collect()),
+        '.' => SimpleSelector::Class(it.collect()),
         '*' => SimpleSelector::Universal,
-        ':' => SimpleSelector::PseudoClass(PseudoClassSelector(it.collect())),
+        ':' => SimpleSelector::PseudoClass(it.collect()),
         '[' => SimpleSelector::Attribute(todo!()),
-        _ => SimpleSelector::Type(TypeSelector(input)),
+        _ => SimpleSelector::Type(input),
     }
 }
 

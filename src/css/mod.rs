@@ -30,30 +30,30 @@ pub enum Combinator {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SimpleSelector {
-    Type(TypeSelector),
+    Type(String),
     Universal,
-    Attribute(AttributeSelector),
-    Class(ClassSelector),
-    PseudoClass(PseudoClassSelector),
-    ID(IDSelector),
+    Attribute(String),
+    Class(String),
+    PseudoClass(String),
+    ID(String),
 }
 
 #[allow(unused_macros)]
 macro_rules! simple_selector {
     (#$x:expr) => {
-        SimpleSelector::ID(IDSelector(stringify!($x).to_string()))
+        SimpleSelector::ID(stringify!($x).to_string())
     };
     (.$x:expr) => {
-        SimpleSelector::Class(ClassSelector(stringify!($x).to_string()))
+        SimpleSelector::Class(stringify!($x).to_string())
     };
     (:$x:expr) => {
-        SimpleSelector::PseudoClass(PseudoClassSelector(stringify!($x).to_string()))
+        SimpleSelector::PseudoClass(stringify!($x).to_string())
     };
     (*) => {
         SimpleSelector::Universal
     };
     ($x:expr) => {
-        SimpleSelector::Type(TypeSelector(stringify!($x).to_string()))
+        SimpleSelector::Type(stringify!($x).to_string())
     };
 }
 #[allow(unused_imports)]
@@ -75,9 +75,6 @@ macro_rules! combinator_selector {
 #[allow(unused_imports)]
 pub(crate) use combinator_selector;
 
-// h1
-#[derive(Debug, PartialEq, Clone)]
-pub struct TypeSelector(pub String);
 // [att]
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
@@ -92,15 +89,6 @@ pub enum AttributeSelector {
     // `att` begins with val-
     Begins(String, String),
 }
-// .class
-#[derive(Debug, PartialEq, Clone)]
-pub struct ClassSelector(pub String);
-// #id
-#[derive(Debug, PartialEq, Clone)]
-pub struct IDSelector(pub String);
-// :valid
-#[derive(Debug, PartialEq, Clone)]
-pub struct PseudoClassSelector(pub String);
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Declaration {
