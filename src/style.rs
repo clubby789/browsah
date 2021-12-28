@@ -48,6 +48,8 @@ pub enum StyledContent {
 }
 
 impl StyledElement {
+    /// Insert a CSS declaration (key/[`Value`]) only if the [`Specificity`] of the
+    /// existing rule for that key is lower (or does not exist)
     pub fn insert(&mut self, key: String, value: Value, spec: Specificity) {
         // Insert the new declaration only if the attribute is not specified *or*
         // the specificity is lower
@@ -166,6 +168,7 @@ impl From<DOMElement> for StyledElement {
     }
 }
 
+/// Create a [`StyledElement`] tree from the DOM and then apply a stylesheet to it
 pub fn construct_style_tree(dom: DOMElement, css: Stylesheet) -> StyledElement {
     let mut tree: StyledElement = dom.into();
     tree.apply_styles(css.rules);
@@ -198,6 +201,7 @@ impl StyledElement {
         }
     }
 
+    /// Check if the provided [`Selector`] selects this element
     fn does_rule_apply(&self, selector: &Selector) -> bool {
         match selector {
             Selector::Simple(s) => self.does_simple_selector_apply(s),
@@ -206,20 +210,36 @@ impl StyledElement {
         }
     }
 
+    /// Check if the provided [`SimpleSelector`] selects this element
     fn does_simple_selector_apply(&self, selector: &SimpleSelector) -> bool {
         match selector {
             SimpleSelector::Type(name) => &self.name == name,
             SimpleSelector::Universal => true,
             SimpleSelector::Attribute(_) => todo!(),
-            SimpleSelector::Class(name) => self
-                .attributes
-                .0
-                .get("class")
-                .map(|c: &String| c.split_whitespace().any(|c| c == name.as_str()))
-                .unwrap_or(false),
+            SimpleSelector::Class(name) => self.has_class(name),
             SimpleSelector::PseudoClass(_) => todo!(),
-            SimpleSelector::ID(_) => todo!(),
+            SimpleSelector::ID(id) => self.id_is(id),
         }
+    }
+
+    /// Check if the `class` attribute is present and contains the specified class
+    fn has_class(&self, class: impl Into<String>) -> bool {
+        let class: String = class.into();
+        self.attributes
+            .0
+            .get("class")
+            .map(|c: &String| c.split_whitespace().any(|c| *c == class))
+            .unwrap_or(false)
+    }
+
+    /// Check if the `id` attribute exists and is an exact match for the provided ID
+    fn id_is(&self, id: impl Into<String>) -> bool {
+        let id: String = id.into();
+        self.attributes
+            .0
+            .get("id")
+            .map(|c| c == &id)
+            .unwrap_or(false)
     }
 
     /// Apply a list of [`Declaration`]s to a node and all its children recursively
