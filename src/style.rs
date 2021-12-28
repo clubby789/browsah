@@ -191,7 +191,7 @@ impl StyledElement {
             .max()
         {
             // Styles will be inherited by children
-            return self.apply_rule_unconditionally(&style.declarations, spec);
+            return self.apply_rule_unconditionally(&style.declarations, spec, false);
         }
         // Didn't apply to the parent, so we need to check each child recursively
         for content in &mut self.contents {
@@ -243,14 +243,32 @@ impl StyledElement {
     }
 
     /// Apply a list of [`Declaration`]s to a node and all its children recursively
-    fn apply_rule_unconditionally(&mut self, declarations: &[Declaration], spec: Specificity) {
+    /// `inherit_all`: Whether to apply *every* declaration to children. If this is `false`, only
+    /// properties specified in [value@INHERITED] will be applied recursively
+    fn apply_rule_unconditionally(
+        &mut self,
+        declarations: &[Declaration],
+        spec: Specificity,
+        inherit_all: bool,
+    ) {
         declarations.iter().for_each(|decl| {
             let (name, value) = (decl.name.clone(), decl.value.clone());
             self.styles.insert(name, (value, spec));
         });
+        let inherited: Vec<Declaration> = if inherit_all {
+            // If this is true, we aren't in the top level and our declarations have already been
+            // filtered
+            declarations.to_vec()
+        } else {
+            declarations
+                .iter()
+                .cloned()
+                .filter(|d| INHERITED.contains(&d.name.as_str()))
+                .collect()
+        };
         self.contents.iter_mut().for_each(|content| {
             if let StyledContent::Element(elt) = content {
-                elt.apply_rule_unconditionally(declarations, spec)
+                elt.apply_rule_unconditionally(inherited.as_slice(), spec, true)
             }
         });
     }
@@ -274,3 +292,47 @@ fn test_does_apply() {
     let dom: StyledElement = DOMElement::new("p", Some(attributes! {class=>wide}), vec![]).into();
     assert!(dom.does_rule_apply(&style));
 }
+
+static INHERITED: &[&str] = &[
+    "azimuth",
+    "border-collapse",
+    "border-spacing",
+    "caption-side",
+    "color",
+    "cursor",
+    "direction",
+    "elevation",
+    "empty-cells",
+    "font-family",
+    "font-size",
+    "font-style",
+    "font-variant",
+    "font-weight",
+    "font",
+    "letter-spacing",
+    "line-height",
+    "list-style-image",
+    "list-style-position",
+    "list-style-type",
+    "list-style",
+    "orphans",
+    "pitch-range",
+    "pitch",
+    "quotes",
+    "richness",
+    "speak-header",
+    "speak-numeral",
+    "speak-punctuation",
+    "speak",
+    "speech-rate",
+    "stress",
+    "text-align",
+    "text-indent",
+    "text-transform",
+    "visibility",
+    "voice-family",
+    "volume",
+    "white-space",
+    "widows",
+    "word-spacing",
+];
