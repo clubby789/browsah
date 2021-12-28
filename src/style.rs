@@ -1,8 +1,5 @@
 use super::html::DOMElement;
-use crate::css::{
-    Declaration, Ruleset, Selector,
-    SimpleSelector, Stylesheet, Value,
-};
+use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
 use crate::html::{DOMAttributes, DOMContent};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -242,7 +239,10 @@ impl StyledElement {
 #[cfg(test)]
 #[test]
 fn test_does_apply() {
-    use crate::{html::{attributes}, css::{compound_selector, simple_selector}};
+    use crate::{
+        css::{compound_selector, simple_selector},
+        html::attributes,
+    };
     let dom: StyledElement = DOMElement::new("div", None, vec![]).into();
     let style: Selector = Selector::Simple(simple_selector!(div));
     assert!(dom.does_rule_apply(&style));

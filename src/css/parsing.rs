@@ -3,8 +3,8 @@ use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until};
 use nom::character::complete::{alphanumeric1, char, digit1, multispace0, multispace1, one_of};
 use nom::combinator::{map, opt, peek, value, verify};
-use nom::multi::{many0, many1, many_m_n};
-use nom::sequence::{delimited, pair, terminated, tuple};
+use nom::multi::{many0, many1};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{AsChar, IResult};
 
 ///! Implements the CSS spec (https://github.com/antlr/grammars-v4/blob/master/css3/css3.g4)
@@ -413,25 +413,46 @@ fn dimension_unit(input: &str) -> IResult<&str, Unit> {
 }
 fn hexcolor(input: &str) -> IResult<&str, Value> {
     let is_hex_str = |c: &str| c.bytes().all(|c| c.is_hex_digit());
-    let hex_val = verify(take::<usize, &str, _>(2), is_hex_str);
-    let (input, (_, values)) = pair(char('#'), many_m_n(3, 4, hex_val))(input)?;
-    let values: Vec<u8> = values
-        .into_iter()
-        .map(|v| u8::from_str_radix(v, 16).expect("Passed an invalid hex value"))
+    let long_form = map(verify(take::<usize, &str, _>(6), is_hex_str), |s| {
+        s.to_string()
+    });
+    let short_form = verify(
+        map(take::<usize, &str, _>(3), |val| {
+            val.chars()
+                .flat_map(|c| [c, c].into_iter())
+                .collect::<String>()
+        }),
+        is_hex_str,
+    );
+    let (input, hex_val) = preceded(char('#'), alt((long_form, short_form)))(input)?;
+    // We should be provided a string of length 3 or 6, with 3 being promoted to 6
+    assert_eq!(hex_val.len(), 6);
+    let hex_val: Vec<char> = hex_val.chars().collect();
+    let mut values: Vec<u8> = hex_val
+        .as_slice()
+        .chunks(2)
+        .map(|v| u8::from_str_radix(v.iter().collect::<String>().as_str(), 16).unwrap())
         .collect();
-    let values: [u8; 4] = match &values.len() {
-        4 => values.try_into().unwrap(),
-        3 => values
-            .into_iter()
-            .chain([255u8])
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap(),
-        _ => unreachable!(),
-    };
+    values.push(255);
+
     let col = ColorValue::new(values.as_slice());
     Ok((input, Value::Color(col)))
 }
+#[cfg(test)]
+#[test]
+fn test_hexcolor() {
+    let i = "#112233";
+    let target = Value::Color(ColorValue::new(&[0x11, 0x22, 0x33, 0xff]));
+    assert_eq!(hexcolor(i), Ok(("", target)));
+
+    let i = "#123";
+    let target = Value::Color(ColorValue::new(&[0x11, 0x22, 0x33, 0xff]));
+    assert_eq!(hexcolor(i), Ok(("", target)));
+
+    let i = "#ggg";
+    assert!(hexcolor(i).is_err());
+}
+
 fn _calc(_input: &str) -> IResult<&str, Value> {
     todo!()
 }
