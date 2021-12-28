@@ -22,7 +22,7 @@ impl DOMElement {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct DOMAttributes(HashMap<String, String>);
+pub struct DOMAttributes(pub HashMap<String, String>);
 
 #[allow(unused_macros)]
 macro_rules! attributes {
@@ -32,6 +32,8 @@ macro_rules! attributes {
         ]))
     }
 }
+#[allow(unused_imports)]
+pub(crate) use attributes;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DOMContent {

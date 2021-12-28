@@ -56,11 +56,15 @@ macro_rules! simple_selector {
         SimpleSelector::Type(TypeSelector(stringify!($x).to_string()))
     };
 }
+#[allow(unused_imports)]
+pub(crate) use simple_selector;
 
 #[allow(unused_macros)]
 macro_rules! compound_selector {
     ($($sel:expr),*) => {Selector::Compound(vec![$($sel),*])}
 }
+#[allow(unused_imports)]
+pub(crate) use compound_selector;
 
 #[allow(unused_macros)]
 macro_rules! combinator_selector {
@@ -68,10 +72,12 @@ macro_rules! combinator_selector {
         Selector::Combinator($l.into(), $c, $r.into())
     };
 }
+#[allow(unused_imports)]
+pub(crate) use combinator_selector;
 
 // h1
 #[derive(Debug, PartialEq, Clone)]
-pub struct TypeSelector(String);
+pub struct TypeSelector(pub String);
 // [att]
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
@@ -88,18 +94,18 @@ pub enum AttributeSelector {
 }
 // .class
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassSelector(String);
+pub struct ClassSelector(pub String);
 // #id
 #[derive(Debug, PartialEq, Clone)]
-pub struct IDSelector(String);
+pub struct IDSelector(pub String);
 // :valid
 #[derive(Debug, PartialEq, Clone)]
-pub struct PseudoClassSelector(String);
+pub struct PseudoClassSelector(pub String);
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Declaration {
-    name: String,
-    value: Value,
+    pub name: String,
+    pub value: Value,
 }
 
 #[allow(dead_code)]
