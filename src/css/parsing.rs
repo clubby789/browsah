@@ -407,7 +407,10 @@ fn dimension_unit(input: &str) -> IResult<&str, Unit> {
     ))(input)?;
     let unit = match unit.to_lowercase().as_str() {
         "px" => Unit::Px,
-        _ => todo!(),
+        "cm" => Unit::Cm,
+        "mm" => Unit::Mm,
+        "em" => Unit::Em,
+        _ => todo!("{}", unit),
     };
     Ok((input, unit))
 }

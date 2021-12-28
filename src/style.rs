@@ -127,7 +127,7 @@ impl From<&Selector> for Specificity {
         match sel {
             Selector::Simple(sel) => sel.into(),
             Selector::Compound(sels) => sels.iter().map(|s| s.into()).sum(),
-            Selector::Combinator(l, c, r) => {
+            Selector::Combinator(l, _, r) => {
                 Specificity::from(l.deref()) + Specificity::from(r.deref())
             }
         }
@@ -175,6 +175,7 @@ pub fn construct_style_tree(dom: DOMElement, css: Stylesheet) -> StyledElement {
     tree
 }
 
+#[allow(dead_code)]
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
     pub fn apply_styles(&mut self, styles: Vec<Ruleset>) {
@@ -293,6 +294,7 @@ fn test_does_apply() {
     assert!(dom.does_rule_apply(&style));
 }
 
+#[allow(unused_variables)]
 static INHERITED: &[&str] = &[
     "azimuth",
     "border-collapse",

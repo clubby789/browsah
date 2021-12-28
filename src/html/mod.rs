@@ -19,6 +19,37 @@ impl DOMElement {
             contents,
         }
     }
+
+    pub fn get_elements_by_name(
+        &self,
+        name: impl Into<String>,
+        recursive: bool,
+    ) -> Vec<&DOMElement> {
+        let name = name.into();
+        if !recursive {
+            self.contents
+                .iter()
+                .filter_map(|c| {
+                    if let DOMContent::Element(elt) = c {
+                        if elt.name == name {
+                            Some(elt)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            todo!()
+        }
+    }
+
+    pub fn get_attribute(&self, name: impl Into<String>) -> Option<&String> {
+        let name = name.into();
+        self.attributes.0.get(name.as_str())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

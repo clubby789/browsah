@@ -241,6 +241,7 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
             let mut args: Vec<u8> = func
                 .1
                 .iter()
+                .take(3)
                 .map(|v| {
                     if let Value::Numeric(NumericValue::Number(val)) = v {
                         *val as u8
@@ -250,6 +251,21 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
                 })
                 .collect();
             args.push(255);
+            Some(Value::Color(ColorValue::new(args.as_slice())))
+        }
+        "rgba" => {
+            let args: Vec<u8> = func
+                .1
+                .iter()
+                .take(4)
+                .map(|v| {
+                    if let Value::Numeric(NumericValue::Number(val)) = v {
+                        *val as u8
+                    } else {
+                        unreachable!()
+                    }
+                })
+                .collect();
             Some(Value::Color(ColorValue::new(args.as_slice())))
         }
         _ => None,
