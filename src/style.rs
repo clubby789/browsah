@@ -1,5 +1,5 @@
 use super::html::DOMElement;
-use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
+use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value, TextValue};
 use crate::html::{DOMAttributes, DOMContent};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -32,14 +32,6 @@ impl From<&String> for StyledString {
     }
 }
 
-impl From<String> for StyledString {
-    fn from(s: String) -> Self {
-        StyledString {
-            contents: s,
-            styles: Default::default(),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub enum StyledContent {
@@ -148,11 +140,11 @@ impl From<&SimpleSelector> for Specificity {
     }
 }
 
-impl From<DOMContent> for StyledContent {
+impl From<DOMContent> for Option<StyledContent> {
     fn from(content: DOMContent) -> Self {
         match content {
-            DOMContent::Text(s) => StyledContent::Text(s.into()),
-            DOMContent::Element(e) => StyledContent::Element(e.into()),
+            DOMContent::Text(s) => Some(StyledContent::Text((&s).into())),
+            DOMContent::Element(e) => if element_is_excluded(&e) {None} else { Some(StyledContent::Element(e.into())) },
         }
     }
 }
@@ -162,10 +154,15 @@ impl From<DOMElement> for StyledElement {
         Self {
             name: element.name,
             styles: Default::default(),
-            contents: element.contents.into_iter().map(|e| e.into()).collect(),
+            contents: element.contents.into_iter().filter_map(|e| e.into()).collect(),
             attributes: element.attributes,
         }
     }
+}
+
+/// Certain elements should not be copied into the style tree, i.e. do not produce a 'box'
+fn element_is_excluded(elt: &DOMElement) -> bool {
+    EXCLUDED.contains(&elt.name.as_str())
 }
 
 /// Create a [`StyledElement`] tree from the DOM and then apply a stylesheet to it
@@ -179,11 +176,13 @@ pub fn construct_style_tree(dom: DOMElement, css: Stylesheet) -> StyledElement {
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
     pub fn apply_styles(&mut self, styles: Vec<Ruleset>) {
-        styles.iter().for_each(|r| self.apply_rule(r));
+        styles.iter().for_each(|r| {self.apply_rule(r);});
     }
 
     /// Find the highest specificity (if any) selector for a given node and apply it
-    fn apply_rule(&mut self, style: &Ruleset) {
+    /// If this function returns `true`, then the element is not being displayed and should
+    /// be deleted by the parent
+    fn apply_rule(&mut self, style: &Ruleset) -> bool {
         if let Some(spec) = style
             .selectors
             .iter()
@@ -191,15 +190,25 @@ impl StyledElement {
             .map(Specificity::from)
             .max()
         {
+            if style.declarations.iter().any(|decl| decl.name.as_str() == "display" && decl.value == Value::Textual(TextValue::Keyword("none".to_string()))) {
+                return true;
+            }
             // Styles will be inherited by children
-            return self.apply_rule_unconditionally(&style.declarations, spec, false);
+            self.apply_rule_unconditionally(&style.declarations, spec, false);
+            return false;
         }
         // Didn't apply to the parent, so we need to check each child recursively
-        for content in &mut self.contents {
+        let mut remove = Vec::new();
+        for (i, content) in self.contents.iter_mut().enumerate() {
             if let StyledContent::Element(elt) = content {
-                elt.apply_rule(style);
+                if elt.apply_rule(style) {
+                    remove.push(i);
+                }
             }
         }
+        // Iterate backwards so we can remove elements from the array
+        remove.into_iter().rev().for_each(|i| {self.contents.remove(i);});
+        false
     }
 
     /// Check if the provided [`Selector`] selects this element
@@ -293,6 +302,20 @@ fn test_does_apply() {
     let dom: StyledElement = DOMElement::new("p", Some(attributes! {class=>wide}), vec![]).into();
     assert!(dom.does_rule_apply(&style));
 }
+
+// Taken from https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css
+static EXCLUDED: &[&str] = &[
+    "head",
+    "meta",
+    "title",
+    "link",
+    "style",
+    "script",
+    "datalist",
+    "param",
+    "noframes",
+    "template",
+];
 
 #[allow(unused_variables)]
 static INHERITED: &[&str] = &[
