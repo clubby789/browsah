@@ -14,6 +14,12 @@ pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
     let (input, _) = many0(pair(charset, ws))(input)?;
     let (input, _) = many0(pair(import, ws))(input)?;
     let (input, rules) = many0(ruleset)(input)?;
+    // Skip over any rules with empty selectors/bodies - these are either useless or invalid,
+    // and the parser has returned an empty rule
+    let rules = rules
+        .into_iter()
+        .filter(|r| !r.selectors.is_empty() && !r.selectors.is_empty())
+        .collect();
     let (input, _) = ws(input)?;
     Ok((input, Stylesheet { rules }))
 }
@@ -90,16 +96,27 @@ fn test_string() {
 fn ruleset(input: &str) -> IResult<&str, Ruleset> {
     let (input, selectors) = selector_group(input)?;
     let (input, _) = ws(input)?;
-    let (input, declarations) =
-        delimited(pair(char('{'), ws), declaration_list, pair(char('}'), ws))(input)?;
+    let (input, body) =
+        delimited(pair(char('{'), ws), take_until("}"), pair(char('}'), ws))(input)?;
     let (input, _) = ws(input)?;
-    Ok((
-        input,
-        Ruleset {
-            selectors,
-            declarations,
-        },
-    ))
+    if let Ok((_, declarations)) = declaration_list(body) {
+        Ok((
+            input,
+            Ruleset {
+                selectors,
+                declarations,
+            },
+        ))
+    } else {
+        // Wasn't able to parse the body of this ruleset - return an 'empty' rule and move on
+        Ok((
+            input,
+            Ruleset {
+                selectors: vec![],
+                declarations: vec![],
+            },
+        ))
+    }
 }
 #[cfg(test)]
 #[test]

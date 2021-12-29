@@ -69,3 +69,21 @@ body {
     };
     assert_eq!(stylesheet(i), Ok(("", target)));
 }
+
+#[cfg(test)]
+#[test]
+fn test_invalid_rule() {
+    let i = r#"h1 {
+    BLAHBALH
+}
+h2 {
+    color: black;
+}"#;
+    let target = Stylesheet {
+        rules: vec![Ruleset {
+            selectors: vec![Selector::Simple(simple_selector!(h2))],
+            declarations: vec![Declaration::new("color", Value::Color(keywords::BLACK))],
+        }],
+    };
+    assert_eq!(stylesheet(i), Ok(("", target)))
+}

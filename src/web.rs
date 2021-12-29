@@ -1,16 +1,16 @@
 use reqwest::blocking;
 use url::Url;
 
-use crate::html::{self, DOMElement, DOMContent};
-use crate::style::StyledElement;
-use crate::css::Stylesheet;
 use crate::css;
+use crate::css::Stylesheet;
+use crate::html::{self, DOMContent, DOMElement};
+use crate::style::StyledElement;
 
 #[derive(Debug)]
 pub struct Page {
     url: Url,
     dom: DOMElement,
-    style: StyledElement
+    style: StyledElement,
 }
 
 impl Page {
@@ -25,13 +25,15 @@ impl Page {
             .1;
         let mut page = Self::from_dom(doc, url);
         let styles = page.get_styles();
-        styles.into_iter().for_each(|sheet| page.style.apply_styles(sheet.rules));
+        styles
+            .into_iter()
+            .for_each(|sheet| page.style.apply_styles(sheet.rules));
         page
     }
 
     pub fn from_dom(dom: DOMElement, url: Url) -> Self {
         let style = dom.clone().into();
-        Self {url, dom, style}
+        Self { url, dom, style }
     }
 
     pub fn get_styles(&self) -> Vec<Stylesheet> {

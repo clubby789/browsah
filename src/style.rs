@@ -1,5 +1,5 @@
 use super::html::DOMElement;
-use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value, TextValue};
+use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, TextValue, Value};
 use crate::html::{DOMAttributes, DOMContent};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -31,7 +31,6 @@ impl From<&String> for StyledString {
         }
     }
 }
-
 
 #[derive(Debug)]
 pub enum StyledContent {
@@ -144,7 +143,13 @@ impl From<DOMContent> for Option<StyledContent> {
     fn from(content: DOMContent) -> Self {
         match content {
             DOMContent::Text(s) => Some(StyledContent::Text((&s).into())),
-            DOMContent::Element(e) => if element_is_excluded(&e) {None} else { Some(StyledContent::Element(e.into())) },
+            DOMContent::Element(e) => {
+                if element_is_excluded(&e) {
+                    None
+                } else {
+                    Some(StyledContent::Element(e.into()))
+                }
+            }
         }
     }
 }
@@ -154,7 +159,11 @@ impl From<DOMElement> for StyledElement {
         Self {
             name: element.name,
             styles: Default::default(),
-            contents: element.contents.into_iter().filter_map(|e| e.into()).collect(),
+            contents: element
+                .contents
+                .into_iter()
+                .filter_map(|e| e.into())
+                .collect(),
             attributes: element.attributes,
         }
     }
@@ -176,7 +185,9 @@ pub fn construct_style_tree(dom: DOMElement, css: Stylesheet) -> StyledElement {
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
     pub fn apply_styles(&mut self, styles: Vec<Ruleset>) {
-        styles.iter().for_each(|r| {self.apply_rule(r);});
+        styles.iter().for_each(|r| {
+            self.apply_rule(r);
+        });
     }
 
     /// Find the highest specificity (if any) selector for a given node and apply it
@@ -190,7 +201,10 @@ impl StyledElement {
             .map(Specificity::from)
             .max()
         {
-            if style.declarations.iter().any(|decl| decl.name.as_str() == "display" && decl.value == Value::Textual(TextValue::Keyword("none".to_string()))) {
+            if style.declarations.iter().any(|decl| {
+                decl.name.as_str() == "display"
+                    && decl.value == Value::Textual(TextValue::Keyword("none".to_string()))
+            }) {
                 return true;
             }
             // Styles will be inherited by children
@@ -207,7 +221,9 @@ impl StyledElement {
             }
         }
         // Iterate backwards so we can remove elements from the array
-        remove.into_iter().rev().for_each(|i| {self.contents.remove(i);});
+        remove.into_iter().rev().for_each(|i| {
+            self.contents.remove(i);
+        });
         false
     }
 
@@ -305,16 +321,7 @@ fn test_does_apply() {
 
 // Taken from https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css
 static EXCLUDED: &[&str] = &[
-    "head",
-    "meta",
-    "title",
-    "link",
-    "style",
-    "script",
-    "datalist",
-    "param",
-    "noframes",
-    "template",
+    "head", "meta", "title", "link", "style", "script", "datalist", "param", "noframes", "template",
 ];
 
 #[allow(unused_variables)]
