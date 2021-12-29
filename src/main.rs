@@ -2,7 +2,6 @@
 
 use clap::{AppSettings, Parser, Subcommand};
 
-use crate::style::StyledElement;
 use std::fs;
 
 /// Parsing of CSS
@@ -12,6 +11,7 @@ mod html;
 /// Application of CSS styles to HTML
 #[allow(dead_code)]
 mod style;
+mod web;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -69,45 +69,6 @@ fn parse_file(filename: &str) {
 }
 
 fn request_url(url: &str) {
-    use html::DOMContent;
-    use reqwest::blocking;
-
-    let url = url::Url::parse(url).expect("Could not parse URL");
-    let resp = blocking::get(url.clone())
-        .expect("Could not request URL")
-        .text()
-        .expect("Could not get response text");
-    let doc = html::document(resp.as_str())
-        .expect("Could not parse HTML")
-        .1;
-    let mut s_tree: StyledElement = doc.clone().into();
-    if let Some(head) = doc.get_elements_by_name("head", false).get(0) {
-        head.get_elements_by_name("link", false)
-            .iter()
-            .filter(|l| l.get_attribute("rel") == Some(&"stylesheet".into()))
-            .for_each(|s| {
-                if let Some(href) = s.get_attribute("href") {
-                    if let Ok(link) = url.join(href) {
-                        let resp = blocking::get(link)
-                            .expect("Could not request URL")
-                            .text()
-                            .expect("Could not get response text");
-                        let sheet = css::stylesheet(resp.as_str())
-                            .expect("Could not parse CSS")
-                            .1;
-                        s_tree.apply_styles(sheet.rules);
-                    }
-                }
-            });
-        head.get_elements_by_name("style", false)
-            .iter()
-            .for_each(|e| {
-                if let Some(DOMContent::Text(t)) = e.contents.get(0) {
-                    if let Ok((_, sheet)) = css::stylesheet(t.as_str()) {
-                        s_tree.apply_styles(sheet.rules);
-                    }
-                }
-            })
-    }
-    dbg!(s_tree);
+    let page = web::Page::browse(url);
+    dbg!(page);
 }
