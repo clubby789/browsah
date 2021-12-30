@@ -86,8 +86,8 @@ impl LayoutBox {
         let default = Value::Numeric(NumericValue::Number(0.0));
         let mut width = &style
             .get("width")
-            .map(|w| w.clone())
-            .unwrap_or(default.clone());
+            .cloned()
+            .unwrap_or_else(|| default.clone());
         let mut margin_left = style
             .get_fallback(&["margin", "margin-left"])
             .unwrap_or(&default);
@@ -130,15 +130,9 @@ impl LayoutBox {
             margin_left == &default,
             margin_right == &default,
         ) {
-            (false, false, false) => {
-                margin_right = &adjusted_margin_right
-            }
-            (false, false, true) => {
-                margin_right = &underflow_val
-            }
-            (false, true, false) => {
-                margin_left = &underflow_val
-            }
+            (false, false, false) => margin_right = &adjusted_margin_right,
+            (false, false, true) => margin_right = &underflow_val,
+            (false, true, false) => margin_left = &underflow_val,
             (true, _, _) => {
                 if underflow >= 0 {
                     width = &underflow_val

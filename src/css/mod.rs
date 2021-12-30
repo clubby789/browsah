@@ -142,10 +142,7 @@ impl Value {
     /// Attempts to convert this value to a concrete pixel size
     pub fn to_px(&self) -> Option<usize> {
         match self {
-            Value::Numeric(val) => match val {
-                NumericValue::Number(n) => Some(*n as usize),
-                _ => None,
-            },
+            Value::Numeric(NumericValue::Number(n)) => Some(*n as usize),
             _ => None,
         }
     }
