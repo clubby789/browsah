@@ -139,6 +139,16 @@ impl Value {
     pub fn multiple(v: impl Into<MultiValue>) -> Self {
         Self::Multiple(v.into())
     }
+    /// Attempts to convert this value to a concrete pixel size
+    pub fn to_px(&self) -> Option<usize> {
+        match self {
+            Value::Numeric(val) => match val {
+                NumericValue::Number(n) => Some(*n as usize),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

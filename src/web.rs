@@ -10,7 +10,7 @@ use crate::style::StyledElement;
 pub struct Page {
     url: Url,
     dom: DOMElement,
-    style: StyledElement,
+    pub style_tree: StyledElement,
 }
 
 impl Page {
@@ -24,13 +24,17 @@ impl Page {
         let styles = page.get_styles();
         styles
             .into_iter()
-            .for_each(|sheet| page.style.apply_styles(sheet.rules));
+            .for_each(|sheet| page.style_tree.apply_styles(sheet.rules));
         page
     }
 
     pub fn from_dom(dom: DOMElement, url: Url) -> Self {
         let style = dom.clone().into();
-        Self { url, dom, style }
+        Self {
+            url,
+            dom,
+            style_tree: style,
+        }
     }
 
     pub fn get_styles(&self) -> Vec<Stylesheet> {
@@ -72,9 +76,7 @@ impl Page {
         if url.scheme() == "file" {
             Ok(std::fs::read_to_string(url.path()).expect("Could not access file"))
         } else {
-            blocking::get(url)
-                .expect("Could not request URL")
-                .text()
+            blocking::get(url).expect("Could not request URL").text()
         }
     }
 

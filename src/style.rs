@@ -6,7 +6,21 @@ use std::collections::HashMap;
 use std::iter::Sum;
 use std::ops::{Add, Deref};
 
-pub type StyleMap = HashMap<String, (Value, Specificity)>;
+#[derive(Default, Debug)]
+pub struct StyleMap(HashMap<String, (Value, Specificity)>);
+
+impl StyleMap {
+    pub fn get(&self, value: impl Into<String>) -> Option<&Value> {
+        self.0.get(value.into().as_str()).map(|v| &v.0)
+    }
+    pub fn get_fallback(&self, value: &[&str]) -> Option<&Value> {
+        value
+            .iter()
+            .filter_map(|v| self.0.get(&v.to_string()))
+            .next()
+            .map(|v| &v.0)
+    }
+}
 
 #[derive(Debug)]
 pub struct StyledElement {
@@ -44,12 +58,12 @@ impl StyledElement {
     pub fn insert(&mut self, key: String, value: Value, spec: Specificity) {
         // Insert the new declaration only if the attribute is not specified *or*
         // the specificity is lower
-        if let Some(&(_, existing)) = self.styles.get(&key) {
+        if let Some(&(_, existing)) = self.styles.0.get(&key) {
             if spec >= existing {
-                self.styles.insert(key, (value, spec));
+                self.styles.0.insert(key, (value, spec));
             };
         } else {
-            self.styles.insert(key, (value, spec));
+            self.styles.0.insert(key, (value, spec));
         }
     }
 }
@@ -279,7 +293,7 @@ impl StyledElement {
     ) {
         declarations.iter().for_each(|decl| {
             let (name, value) = (decl.name.clone(), decl.value.clone());
-            self.styles.insert(name, (value, spec));
+            self.styles.0.insert(name, (value, spec));
         });
         let inherited: Vec<Declaration> = if inherit_all {
             // If this is true, we aren't in the top level and our declarations have already been

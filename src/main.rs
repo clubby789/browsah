@@ -2,18 +2,20 @@
 
 use clap::{AppSettings, Parser, Subcommand};
 
+use crate::layout::create_layout;
 use std::fs;
 
 /// Parsing of CSS
 mod css;
 /// Parsing of HTML to DOM
 mod html;
+/// Translation of a [`StyledElement`] tree into a tree of boxes
+mod layout;
 /// Application of CSS styles to HTML
 #[allow(dead_code)]
 mod style;
 /// Fetching of resources from the web
 mod web;
-
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -72,5 +74,7 @@ fn parse_file(filename: &str) {
 
 fn request_url(url: &str) {
     let page = web::Page::browse(url);
-    dbg!(page);
+    let style = page.style_tree;
+    let boxes = create_layout(&style, (500, 500));
+    dbg!(boxes);
 }
