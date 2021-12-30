@@ -18,7 +18,7 @@ pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
     // and the parser has returned an empty rule
     let rules = rules
         .into_iter()
-        .filter(|r| !r.selectors.is_empty() && !r.selectors.is_empty())
+        .filter(|r| !r.selectors.is_empty() && !r.declarations.is_empty())
         .collect();
     let (input, _) = ws(input)?;
     Ok((input, Stylesheet { rules }))
