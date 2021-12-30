@@ -16,9 +16,9 @@ pub struct LayoutBox {
 #[derive(Copy, Clone, Debug)]
 struct Dimensions {
     content: Rect,
-    margin: Rect,
-    border: Rect,
-    padding: Rect,
+    margin: EdgeSizes,
+    border: EdgeSizes,
+    padding: EdgeSizes,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -51,6 +51,14 @@ struct Rect {
     pub height: usize,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct EdgeSizes {
+    pub left: usize,
+    pub right: usize,
+    pub top: usize,
+    pub bottom: usize,
+}
+
 #[derive(Copy, Clone, Debug)]
 struct Position {
     x: usize,
@@ -76,14 +84,14 @@ impl LayoutBox {
     fn calculate_block_width(&mut self, container: Dimensions) {
         let style = &self.style;
         let default = Value::Numeric(NumericValue::Number(0.0));
-        let width = &style
+        let mut width = &style
             .get("width")
             .map(|w| w.clone())
             .unwrap_or(default.clone());
-        let margin_left = style
+        let mut margin_left = style
             .get_fallback(&["margin", "margin-left"])
             .unwrap_or(&default);
-        let margin_right = style
+        let mut margin_right = style
             .get_fallback(&["margin", "margin-right"])
             .unwrap_or(&default);
         let border_left = style
@@ -111,6 +119,46 @@ impl LayoutBox {
         .map(|v| v.to_px().unwrap_or(0))
         .sum();
         let underflow = container.content.width as isize - total_width as isize;
-        todo!()
+        // These values must be created outside the match so they live long enough
+        let underflow_val = Value::Numeric(NumericValue::Number(underflow as f64));
+        let adjusted_margin_right = Value::Numeric(NumericValue::Number(
+            (margin_right.to_px().unwrap_or(0) as isize + underflow) as f64,
+        ));
+        let half_underflow = Value::Numeric(NumericValue::Number(underflow as f64 / 2.0));
+        match (
+            width == &default,
+            margin_left == &default,
+            margin_right == &default,
+        ) {
+            (false, false, false) => {
+                margin_right = &adjusted_margin_right
+            }
+            (false, false, true) => {
+                margin_right = &underflow_val
+            }
+            (false, true, false) => {
+                margin_left = &underflow_val
+            }
+            (true, _, _) => {
+                if underflow >= 0 {
+                    width = &underflow_val
+                } else {
+                    width = &default;
+                    margin_right = &adjusted_margin_right;
+                }
+            }
+            (false, true, true) => {
+                margin_left = &half_underflow;
+                margin_right = &half_underflow;
+            }
+        }
+        let dim = &mut self.dimensions;
+        dim.content.width = width.to_px().unwrap();
+        dim.padding.left = padding_left.to_px().unwrap();
+        dim.padding.right = padding_right.to_px().unwrap();
+        dim.border.left = border_left.to_px().unwrap();
+        dim.border.right = border_right.to_px().unwrap();
+        dim.margin.left = margin_left.to_px().unwrap();
+        dim.margin.right = margin_right.to_px().unwrap();
     }
 }
