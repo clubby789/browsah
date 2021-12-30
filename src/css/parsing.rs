@@ -276,14 +276,21 @@ fn combinator(input: &str) -> IResult<&str, Combinator> {
 }
 
 fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
-    let hash = pair(tag("#"), name);
-    let class = pair(tag("."), ident);
-    let pseudo = pair(tag(":"), ident);
+    let hash = map(pair(tag("#"), name), |(a, b)| format!("{}{}", a, b));
+    let class = map(pair(tag("."), ident), |(a, b)| format!("{}{}", a, b));
+    let pseudo = map(pair(tag(":"), ident), |(a, b)| format!("{}{}", a, b));
     let selectors = alt((hash, class /*attrib*/, pseudo));
+
+    // Hack: Can't reuse FnMut so we just create it twice
+    let hash = map(pair(tag("#"), name), |(a, b)| format!("{}{}", a, b));
+    let class = map(pair(tag("."), ident), |(a, b)| format!("{}{}", a, b));
+    let pseudo = map(pair(tag(":"), ident), |(a, b)| format!("{}{}", a, b));
+    let selectors2 = alt((hash, class /*attrib*/, pseudo));
+
     let element_or_universal = alt((ident, map(tag("*"), str::to_string)));
-    let (input, (first, rest)) = tuple((element_or_universal, many0(selectors)))(input)?;
+    let (input, (first, rest)) = tuple((alt((element_or_universal, selectors)), many0(selectors2)))(input)?;
     let mut selectors = vec![first];
-    selectors.extend(rest.iter().map(|(a, b)| format!("{}{}", a, b)));
+    selectors.extend(rest);
     Ok((input, selectors.into_iter().map(simple_selector).collect()))
 }
 

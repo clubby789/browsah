@@ -223,7 +223,6 @@ impl StyledElement {
             }
             // Styles will be inherited by children
             self.apply_rule_unconditionally(&style.declarations, spec, false);
-            return false;
         }
         // Didn't apply to the parent, so we need to check each child recursively
         let mut remove = Vec::new();

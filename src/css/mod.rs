@@ -143,6 +143,7 @@ impl Value {
     pub fn to_px(&self) -> Option<usize> {
         match self {
             Value::Numeric(NumericValue::Number(n)) => Some(*n as usize),
+            Value::Dimension(NumericValue::Number(n), Unit::Px) => Some(*n as usize),
             _ => None,
         }
     }
@@ -196,10 +197,10 @@ pub enum Unit {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ColorValue {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
 }
 
 impl ColorValue {
@@ -234,7 +235,7 @@ pub struct FunctionValue(String, Vec<Value>);
 
 mod keywords;
 
-use keywords::*;
+pub use keywords::*;
 
 pub fn keyword_to_value(kw: String) -> Option<Value> {
     match kw.as_str() {

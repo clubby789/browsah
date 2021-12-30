@@ -2,8 +2,9 @@
 
 use clap::{AppSettings, Parser, Subcommand};
 
-use crate::layout::create_layout;
+use crate::layout::{create_layout, LayoutBox, Rect};
 use std::fs;
+use crate::display::{paint};
 
 /// Parsing of CSS
 mod css;
@@ -16,6 +17,7 @@ mod layout;
 mod style;
 /// Fetching of resources from the web
 mod web;
+mod display;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -31,15 +33,15 @@ struct App {
 enum Commands {
     /// Parse a single file
     Parse { filename: String },
-    /// Pull a webpage and apply linked styles
-    Request { url: String },
+    /// Pull a webpage and apply linked styles, then render to an image
+    Request { url: String, output: String },
 }
 
 fn main() {
     let args = App::parse();
     match args.command {
         Commands::Parse { filename } => parse_file(filename.as_str()),
-        Commands::Request { url } => request_url(url.as_str()),
+        Commands::Request { url, output} => render_from_url(url.as_str(), output),
     }
 }
 
@@ -72,9 +74,16 @@ fn parse_file(filename: &str) {
     }
 }
 
-fn request_url(url: &str) {
+fn render_from_url(url: &str, output: String) {
+    let layout = request_url(url);
+    let canvas = paint(&layout, Rect {x: 0, y: 0, width: 500, height: 500});
+    let img = canvas.render();
+    img.save(output).expect("Could not save to file");
+
+}
+
+fn request_url(url: &str) -> LayoutBox {
     let page = web::Page::browse(url);
     let style = page.style_tree;
-    let boxes = create_layout(&style, (500, 500));
-    dbg!(boxes);
+    create_layout(&style, (500, 500))
 }

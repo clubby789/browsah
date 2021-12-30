@@ -3,31 +3,32 @@
 use crate::css::{NumericValue, TextValue, Value};
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
+use crate::css::TextValue::Keyword;
 
 #[derive(Debug)]
 pub struct LayoutBox {
-    dimensions: Dimensions,
+    pub dimensions: Dimensions,
     box_type: BoxType,
-    contents: Vec<LayoutBox>,
-    style: StyleMap,
+    pub contents: Vec<LayoutBox>,
+    pub style: StyleMap,
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-struct Dimensions {
-    content: Rect,
-    margin: EdgeSizes,
-    border: EdgeSizes,
-    padding: EdgeSizes,
+pub struct Dimensions {
+    pub content: Rect,
+    pub margin: EdgeSizes,
+    pub border: EdgeSizes,
+    pub padding: EdgeSizes,
 }
 
 impl Dimensions {
-    fn padding_box(self) -> Rect {
+    pub fn padding_box(self) -> Rect {
         self.content.expanded_by(self.padding)
     }
-    fn border_box(self) -> Rect {
+    pub fn border_box(self) -> Rect {
         self.padding_box().expanded_by(self.border)
     }
-    fn margin_box(self) -> Rect {
+    pub fn margin_box(self) -> Rect {
         self.border_box().expanded_by(self.margin)
     }
 }
@@ -67,7 +68,7 @@ impl FromStr for BoxType {
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-struct Rect {
+pub struct Rect {
     pub x: usize,
     pub y: usize,
     pub width: usize,
@@ -123,19 +124,24 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
         style: root.styles.clone(),
     };
     for child in &root.contents {
-        if let StyledContent::Element(elt) = child {
-            match elt
-                .styles
-                .get("display")
-                .map(|d| d.into())
-                .unwrap_or(BoxType::Block)
-            {
-                BoxType::Block => root_box.contents.push(build_layout_tree(elt)),
-                BoxType::Inline => root_box
-                    .get_inline_container()
-                    .contents
-                    .push(build_layout_tree(elt)),
-                _ => {}
+        match child {
+            StyledContent::Element(elt) => {
+                match elt
+                    .styles
+                    .get("display")
+                    .map(|d| d.into())
+                    .unwrap_or(BoxType::Block)
+                {
+                    BoxType::Block => root_box.contents.push(build_layout_tree(elt)),
+                    BoxType::Inline => root_box
+                        .get_inline_container()
+                        .contents
+                        .push(build_layout_tree(elt)),
+                    _ => {}
+                }
+            },
+            StyledContent::Text(text) => {
+                todo!()
             }
         }
     }
@@ -182,11 +188,12 @@ impl LayoutBox {
 
     fn calculate_block_width(&mut self, container: Dimensions) {
         let style = &self.style;
+        let auto = Value::Textual(Keyword("auto".to_string()));
         let default = Value::Numeric(NumericValue::Number(0.0));
         let mut width = &style
             .get("width")
             .cloned()
-            .unwrap_or_else(|| default.clone());
+            .unwrap_or_else(|| auto.clone());
         let mut margin_left = style
             .get_fallback(&["margin", "margin-left"])
             .unwrap_or(&default);
@@ -194,10 +201,10 @@ impl LayoutBox {
             .get_fallback(&["margin", "margin-right"])
             .unwrap_or(&default);
         let border_left = style
-            .get_fallback(&["border", "border-left"])
+            .get_fallback(&["border", "border-width", "border-left"])
             .unwrap_or(&default);
         let border_right = style
-            .get_fallback(&["border", "border-right"])
+            .get_fallback(&["border", "border-width", "border-right"])
             .unwrap_or(&default);
         let padding_left = style
             .get_fallback(&["padding", "padding-left"])
@@ -217,6 +224,14 @@ impl LayoutBox {
         .iter()
         .map(|v| v.to_px().unwrap_or(0))
         .sum();
+        if width != &auto && total_width > container.content.width {
+            if margin_left == &auto {
+                margin_left = &default;
+            }
+            if margin_right == &auto {
+                margin_right = &default;
+            }
+        }
         let underflow = container.content.width as isize - total_width as isize;
         // These values must be created outside the match so they live long enough
         let underflow_val = Value::Numeric(NumericValue::Number(underflow as f64));
@@ -225,9 +240,9 @@ impl LayoutBox {
         ));
         let half_underflow = Value::Numeric(NumericValue::Number(underflow as f64 / 2.0));
         match (
-            width == &default,
-            margin_left == &default,
-            margin_right == &default,
+            width == &auto,
+            margin_left == &auto,
+            margin_right == &auto,
         ) {
             (false, false, false) => margin_right = &adjusted_margin_right,
             (false, false, true) => margin_right = &underflow_val,
@@ -305,8 +320,8 @@ impl LayoutBox {
     }
 
     fn calculate_block_height(&mut self) {
-        if let Some(Value::Numeric(NumericValue::Number(n))) = self.style.get("height") {
-            self.dimensions.content.height = *n as usize;
+        if let Some(n) = self.style.get("height").map(|v| v.to_px().unwrap_or(0)) {
+            self.dimensions.content.height = n as usize;
         }
     }
 }
