@@ -16,10 +16,7 @@ pub struct Page {
 impl Page {
     pub fn browse(url: impl Into<String>) -> Self {
         let url = Url::parse(url.into().as_str()).expect("Could not parse URL");
-        let resp = blocking::get(url.clone())
-            .expect("Could not request URL")
-            .text()
-            .expect("Could not get response text");
+        let resp = Page::get_text_resource(url.clone()).expect("Could not get page");
         let doc = html::document(resp.as_str())
             .expect("Could not parse HTML")
             .1;
@@ -44,7 +41,7 @@ impl Page {
                 .filter(|l| l.get_attribute("rel") == Some(&"stylesheet".into()))
                 .for_each(|s| {
                     if let Some(href) = s.get_attribute("href") {
-                        if let Ok(resource) = self.get_text_resource(href) {
+                        if let Ok(resource) = self.get_linked_text_resource(href) {
                             let sheet = css::stylesheet(resource.as_str())
                                 .expect("Could not parse CSS")
                                 .1;
@@ -70,9 +67,19 @@ impl Page {
         self.url.join(url.as_str())
     }
 
-    fn get_text_resource(&self, url: impl Into<String>) -> Result<String, reqwest::Error> {
-        let url = self.resolve_url(url.into()).unwrap();
-        let response = blocking::get(url)?;
-        response.text()
+    fn get_text_resource(url: impl Into<String>) -> Result<String, reqwest::Error> {
+        let url = Url::parse(url.into().as_str()).expect("Could not parse URL");
+        if url.scheme() == "file" {
+            Ok(std::fs::read_to_string(url.path()).expect("Could not access file"))
+        } else {
+            blocking::get(url)
+                .expect("Could not request URL")
+                .text()
+        }
+    }
+
+    fn get_linked_text_resource(&self, url: impl Into<String>) -> Result<String, reqwest::Error> {
+        let url = self.resolve_url(url).expect("Could not resolve URL");
+        Page::get_text_resource(url)
     }
 }

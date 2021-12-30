@@ -11,7 +11,9 @@ mod html;
 /// Application of CSS styles to HTML
 #[allow(dead_code)]
 mod style;
+/// Fetching of resources from the web
 mod web;
+
 
 #[derive(Parser)]
 #[clap(author, version, about)]
