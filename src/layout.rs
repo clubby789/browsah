@@ -1,19 +1,18 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::css::{NumericValue, Value};
-use crate::style::{StyleMap, StyledElement};
+use crate::css::{NumericValue, TextValue, Value};
+use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct LayoutBox {
-    // position: Position,
     dimensions: Dimensions,
     box_type: BoxType,
     contents: Vec<LayoutBox>,
     style: StyleMap,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 struct Dimensions {
     content: Rect,
     margin: EdgeSizes,
@@ -21,11 +20,33 @@ struct Dimensions {
     padding: EdgeSizes,
 }
 
+impl Dimensions {
+    fn padding_box(self) -> Rect {
+        self.content.expanded_by(self.padding)
+    }
+    fn border_box(self) -> Rect {
+        self.padding_box().expanded_by(self.border)
+    }
+    fn margin_box(self) -> Rect {
+        self.border_box().expanded_by(self.margin)
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 enum BoxType {
     Block,
     Inline,
     Anonymous,
+}
+
+impl From<&Value> for BoxType {
+    fn from(v: &Value) -> Self {
+        if let Value::Textual(TextValue::Keyword(k)) = v {
+            k.as_str().parse().unwrap_or(BoxType::Block)
+        } else {
+            BoxType::Block
+        }
+    }
 }
 
 impl Default for BoxType {
@@ -47,11 +68,24 @@ impl FromStr for BoxType {
 
 #[derive(Copy, Clone, Debug, Default)]
 struct Rect {
+    pub x: usize,
+    pub y: usize,
     pub width: usize,
     pub height: usize,
 }
 
-#[derive(Debug, Copy, Clone)]
+impl Rect {
+    fn expanded_by(self, edge: EdgeSizes) -> Rect {
+        Rect {
+            x: self.x - edge.left,
+            y: self.y - edge.top,
+            width: self.width + edge.left + edge.right,
+            height: self.height + edge.top + edge.bottom,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 pub struct EdgeSizes {
     pub left: usize,
     pub right: usize,
@@ -59,17 +93,64 @@ pub struct EdgeSizes {
     pub bottom: usize,
 }
 
-#[derive(Copy, Clone, Debug)]
-struct Position {
-    x: usize,
-    y: usize,
+pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> LayoutBox {
+    let (width, _) = viewport_size;
+    let container = Dimensions {
+        content: Rect {
+            x: 0,
+            y: 0,
+            width,
+            height: 0,
+        },
+        margin: EdgeSizes::default(),
+        border: EdgeSizes::default(),
+        padding: EdgeSizes::default(),
+    };
+    let mut root_box = build_layout_tree(root);
+    root_box.layout(container);
+    root_box
 }
 
-pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> LayoutBox {
-    todo!()
+fn build_layout_tree(root: &StyledElement) -> LayoutBox {
+    let mut root_box = LayoutBox {
+        dimensions: Default::default(),
+        box_type: root
+            .styles
+            .get("display")
+            .map(|d| d.into())
+            .unwrap_or(BoxType::Block),
+        contents: vec![],
+        style: root.styles.clone(),
+    };
+    for child in &root.contents {
+        if let StyledContent::Element(elt) = child {
+            match elt
+                .styles
+                .get("display")
+                .map(|d| d.into())
+                .unwrap_or(BoxType::Block)
+            {
+                BoxType::Block => root_box.contents.push(build_layout_tree(elt)),
+                BoxType::Inline => root_box
+                    .get_inline_container()
+                    .contents
+                    .push(build_layout_tree(elt)),
+                _ => {}
+            }
+        }
+    }
+    root_box
 }
 
 impl LayoutBox {
+    fn new(box_type: BoxType) -> LayoutBox {
+        LayoutBox {
+            box_type,
+            contents: vec![],
+            dimensions: Default::default(),
+            style: Default::default()
+        }
+    }
     fn layout(&mut self, container: Dimensions) {
         match self.box_type {
             BoxType::Block => self.layout_block(container),
@@ -77,8 +158,26 @@ impl LayoutBox {
         }
     }
 
+    fn get_inline_container(&mut self) -> &mut LayoutBox {
+        match self.box_type {
+            BoxType::Inline | BoxType::Anonymous => self,
+            BoxType::Block => {
+                // If we've just generated an anonymous block box, keep using it.
+                // Otherwise, create a new one.
+                match self.contents.last() {
+                    Some(&LayoutBox { box_type: BoxType::Anonymous,..}) => {}
+                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous))
+                }
+                self.contents.last_mut().unwrap()
+            }
+        }
+    }
+
     fn layout_block(&mut self, container: Dimensions) {
         self.calculate_block_width(container);
+        self.calculate_block_position(container);
+        self.layout_block_children();
+        self.calculate_block_height();
     }
 
     fn calculate_block_width(&mut self, container: Dimensions) {
@@ -154,5 +253,60 @@ impl LayoutBox {
         dim.border.right = border_right.to_px().unwrap();
         dim.margin.left = margin_left.to_px().unwrap();
         dim.margin.right = margin_right.to_px().unwrap();
+    }
+    fn calculate_block_position(&mut self, containing_block: Dimensions) {
+        let style = &self.style;
+        let dim = &mut self.dimensions;
+        let zero = Value::Numeric(NumericValue::Number(0.0));
+        dim.margin.top = style
+            .get_fallback(&["margin-top", "margin"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.margin.bottom = style
+            .get_fallback(&["margin-bottom", "margin"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.border.top = style
+            .get_fallback(&["border-top-width", "border-width"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.border.bottom = style
+            .get_fallback(&["border-bottom-width", "border-width"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.padding.top = style
+            .get_fallback(&["padding-top", "padding"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.padding.bottom = style
+            .get_fallback(&["padding-top", "padding"])
+            .unwrap_or(&zero)
+            .to_px()
+            .unwrap();
+        dim.content.x =
+            containing_block.content.x + dim.margin.left + dim.border.left + dim.padding.left;
+        dim.content.y = containing_block.content.height
+            + containing_block.content.y
+            + dim.margin.top
+            + dim.border.top
+            + dim.padding.top;
+    }
+    fn layout_block_children(&mut self) {
+        let dim = &mut self.dimensions;
+        self.contents.iter_mut().for_each(|c| {
+            c.layout(*dim);
+            dim.content.height += c.dimensions.margin_box().height
+        });
+    }
+
+    fn calculate_block_height(&mut self) {
+        if let Some(Value::Numeric(NumericValue::Number(n))) = self.style.get("height") {
+            self.dimensions.content.height = *n as usize;
+        }
     }
 }

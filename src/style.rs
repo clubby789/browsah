@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::iter::Sum;
 use std::ops::{Add, Deref};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct StyleMap(HashMap<String, (Value, Specificity)>);
 
 impl StyleMap {
@@ -255,9 +255,11 @@ impl StyledElement {
         match selector {
             SimpleSelector::Type(name) => &self.name == name,
             SimpleSelector::Universal => true,
-            SimpleSelector::Attribute(_) => todo!(),
+            // TODO: Implement
+            SimpleSelector::Attribute(_) => false,
             SimpleSelector::Class(name) => self.has_class(name),
-            SimpleSelector::PseudoClass(_) => todo!(),
+            // TODO: Implement
+            SimpleSelector::PseudoClass(_) => false,
             SimpleSelector::ID(id) => self.id_is(id),
         }
     }
