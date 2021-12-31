@@ -1,4 +1,3 @@
-use reqwest::blocking;
 use tracing::{span, Level};
 use url::Url;
 
@@ -72,18 +71,21 @@ impl Page {
         self.url.join(url.as_str())
     }
 
-    fn get_text_resource(url: impl Into<String>) -> Result<String, reqwest::Error> {
+    fn get_text_resource(url: impl Into<String>) -> Result<String, ureq::Error> {
         let url = Url::parse(url.into().as_str()).expect("Could not parse URL");
         let span = span!(Level::DEBUG, "Loading resource", "{}", &url);
         let _enter = span.enter();
         if url.scheme() == "file" {
             Ok(std::fs::read_to_string(url.path()).expect("Could not access file"))
         } else {
-            blocking::get(url).expect("Could not request URL").text()
+            Ok(ureq::get(url.as_str())
+                .call()?
+                .into_string()
+                .expect("Could not get text"))
         }
     }
 
-    fn get_linked_text_resource(&self, url: impl Into<String>) -> Result<String, reqwest::Error> {
+    fn get_linked_text_resource(&self, url: impl Into<String>) -> Result<String, ureq::Error> {
         let url = self.resolve_url(url).expect("Could not resolve URL");
         Page::get_text_resource(url)
     }
