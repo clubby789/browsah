@@ -1,9 +1,10 @@
 #![allow(dead_code, unused_variables)]
 
+use crate::css::TextValue::Keyword;
 use crate::css::{NumericValue, TextValue, Value};
+use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
-use crate::css::TextValue::Keyword;
 
 #[derive(Debug)]
 pub struct LayoutBox {
@@ -11,6 +12,26 @@ pub struct LayoutBox {
     box_type: BoxType,
     pub contents: Vec<LayoutBox>,
     pub style: StyleMap,
+    pub box_content_type: BoxContentType,
+}
+
+#[derive(Debug)]
+pub enum BoxContentType {
+    Normal,
+    Image,
+    Text(String),
+}
+
+fn get_content_type(content: &StyledContent) -> BoxContentType {
+    match content {
+        StyledContent::Element(elt) => {
+            if elt.name.as_str() == "img" {
+                return BoxContentType::Image;
+            };
+            BoxContentType::Normal
+        }
+        StyledContent::Text(txt) => BoxContentType::Text(txt.contents.clone()),
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -122,6 +143,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
             .unwrap_or(BoxType::Block),
         contents: vec![],
         style: root.styles.clone(),
+        box_content_type: BoxContentType::Normal,
     };
     for child in &root.contents {
         match child {
@@ -139,9 +161,25 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                         .push(build_layout_tree(elt)),
                     _ => {}
                 }
-            },
+            }
             StyledContent::Text(text) => {
-                todo!()
+                let box_type = text
+                    .styles
+                    .get("display")
+                    .map(|d| d.into())
+                    .unwrap_or(BoxType::Block);
+                let the_box = LayoutBox {
+                    dimensions: Default::default(),
+                    box_type,
+                    contents: vec![],
+                    style: root.styles.clone(),
+                    box_content_type: Text(text.contents.clone()),
+                };
+                match box_type {
+                    BoxType::Block => root_box.contents.push(the_box),
+                    BoxType::Inline => root_box.get_inline_container().contents.push(the_box),
+                    _ => {}
+                }
             }
         }
     }
@@ -154,7 +192,8 @@ impl LayoutBox {
             box_type,
             contents: vec![],
             dimensions: Default::default(),
-            style: Default::default()
+            style: Default::default(),
+            box_content_type: BoxContentType::Normal,
         }
     }
     fn layout(&mut self, container: Dimensions) {
@@ -171,8 +210,11 @@ impl LayoutBox {
                 // If we've just generated an anonymous block box, keep using it.
                 // Otherwise, create a new one.
                 match self.contents.last() {
-                    Some(&LayoutBox { box_type: BoxType::Anonymous,..}) => {}
-                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous))
+                    Some(&LayoutBox {
+                        box_type: BoxType::Anonymous,
+                        ..
+                    }) => {}
+                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous)),
                 }
                 self.contents.last_mut().unwrap()
             }
@@ -187,13 +229,13 @@ impl LayoutBox {
     }
 
     fn calculate_block_width(&mut self, container: Dimensions) {
+        if let BoxContentType::Text(_) = self.box_content_type {
+            return self.calculate_text_block_width(container);
+        }
         let style = &self.style;
         let auto = Value::Textual(Keyword("auto".to_string()));
         let default = Value::Numeric(NumericValue::Number(0.0));
-        let mut width = &style
-            .get("width")
-            .cloned()
-            .unwrap_or_else(|| auto.clone());
+        let mut width = &style.get("width").cloned().unwrap_or_else(|| auto.clone());
         let mut margin_left = style
             .get_fallback(&["margin", "margin-left"])
             .unwrap_or(&default);
@@ -239,11 +281,7 @@ impl LayoutBox {
             (margin_right.to_px().unwrap_or(0) as isize + underflow) as f64,
         ));
         let half_underflow = Value::Numeric(NumericValue::Number(underflow as f64 / 2.0));
-        match (
-            width == &auto,
-            margin_left == &auto,
-            margin_right == &auto,
-        ) {
+        match (width == &auto, margin_left == &auto, margin_right == &auto) {
             (false, false, false) => margin_right = &adjusted_margin_right,
             (false, false, true) => margin_right = &underflow_val,
             (false, true, false) => margin_left = &underflow_val,
@@ -269,6 +307,27 @@ impl LayoutBox {
         dim.margin.left = margin_left.to_px().unwrap();
         dim.margin.right = margin_right.to_px().unwrap();
     }
+
+    fn calculate_text_block_width(&mut self, container: Dimensions) {
+        let font_size = self
+            .style
+            .get("font-size")
+            .map(|v| v.to_px().unwrap_or(11))
+            .unwrap_or(11);
+        if let BoxContentType::Text(s) = &self.box_content_type {
+            let dim = &mut self.dimensions;
+            dim.padding.left = 0;
+            dim.padding.right = 0;
+            dim.border.left = 0;
+            dim.border.right = 0;
+            dim.margin.left = 0;
+            dim.content.width = s.len() * font_size;
+            dim.content.height = font_size;
+        } else {
+            unreachable!();
+        }
+    }
+
     fn calculate_block_position(&mut self, containing_block: Dimensions) {
         let style = &self.style;
         let dim = &mut self.dimensions;

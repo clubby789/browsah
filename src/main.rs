@@ -2,12 +2,13 @@
 
 use clap::{AppSettings, Parser, Subcommand};
 
+use crate::display::paint;
 use crate::layout::{create_layout, LayoutBox, Rect};
 use std::fs;
-use crate::display::{paint};
 
 /// Parsing of CSS
 mod css;
+mod display;
 /// Parsing of HTML to DOM
 mod html;
 /// Translation of a [`StyledElement`] tree into a tree of boxes
@@ -17,7 +18,6 @@ mod layout;
 mod style;
 /// Fetching of resources from the web
 mod web;
-mod display;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -41,7 +41,7 @@ fn main() {
     let args = App::parse();
     match args.command {
         Commands::Parse { filename } => parse_file(filename.as_str()),
-        Commands::Request { url, output} => render_from_url(url.as_str(), output),
+        Commands::Request { url, output } => render_from_url(url.as_str(), output),
     }
 }
 
@@ -76,14 +76,21 @@ fn parse_file(filename: &str) {
 
 fn render_from_url(url: &str, output: String) {
     let layout = request_url(url);
-    let canvas = paint(&layout, Rect {x: 0, y: 0, width: 500, height: 500});
+    let canvas = paint(
+        &layout,
+        Rect {
+            x: 0,
+            y: 0,
+            width: 500,
+            height: 500,
+        },
+    );
     let img = canvas.render();
     img.save(output).expect("Could not save to file");
-
 }
 
 fn request_url(url: &str) -> LayoutBox {
     let page = web::Page::browse(url);
     let style = page.style_tree;
-    create_layout(&style, (500, 500))
+    create_layout(&style, (1600, 1080))
 }

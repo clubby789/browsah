@@ -1,27 +1,51 @@
+use crate::css::{ColorValue, Value, BLACK, WHITE};
+use crate::layout::{BoxContentType, LayoutBox, Rect};
+use crate::style::StyleMap;
+use fontdue::Font;
 use image::{ImageBuffer, Rgba};
-use crate::css::{ColorValue, Value, WHITE};
-use crate::layout::{LayoutBox, Rect};
-use crate::style::{StyleMap};
+use lazy_static::lazy_static;
+
+static ARIAL_TTF: &[u8] = include_bytes!("../resources/arial.ttf");
+lazy_static! {
+    static ref ARIAL: Font = Font::from_bytes(ARIAL_TTF, fontdue::FontSettings::default()).unwrap();
+}
 
 #[derive(Debug)]
 pub enum DisplayCommand {
-    SolidBlock(ColorValue, Rect)
+    SolidBlock(ColorValue, Rect),
+    Text(String, f32, Rect, ColorValue),
 }
 
 pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
     let mut list = vec![];
     list.push(render_background(root));
     list.extend(render_borders(root).unwrap_or(vec![]));
-    root.contents.iter().for_each(|c|{list.extend(build_display_list(c));});
+    match &root.box_content_type {
+        BoxContentType::Text(_) => list.extend(render_text(root)),
+        _ => (),
+    }
+    root.contents.iter().for_each(|c| {
+        list.extend(build_display_list(c));
+    });
     list
 }
 
 fn get_color_value(style: &StyleMap, attr: impl Into<String>) -> Option<&ColorValue> {
-    style.get(attr).map(|val| if let Value::Color(cv) = val {Some(cv)} else {None}).flatten()
+    style
+        .get(attr)
+        .map(|val| {
+            if let Value::Color(cv) = val {
+                Some(cv)
+            } else {
+                None
+            }
+        })
+        .flatten()
 }
 
 fn render_background(root: &LayoutBox) -> DisplayCommand {
-    let bg = get_color_value(&root.style, "background").unwrap_or(&WHITE);
+    let bg = get_color_value(&root.style, "background")
+        .unwrap_or_else(|| get_color_value(&root.style, "background-color").unwrap_or(&WHITE));
     DisplayCommand::SolidBlock(*bg, root.dimensions.border_box())
 }
 
@@ -31,49 +55,79 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     let dim = root.dimensions;
     let border = dim.border_box();
     // Left
-    cmds.push(DisplayCommand::SolidBlock(color.clone(), Rect {
-        x: border.x,
-        y: border.y,
-        width: dim.border.left,
-        height: border.height
-    }));
+    cmds.push(DisplayCommand::SolidBlock(
+        color.clone(),
+        Rect {
+            x: border.x,
+            y: border.y,
+            width: dim.border.left,
+            height: border.height,
+        },
+    ));
     // Right
-    cmds.push(DisplayCommand::SolidBlock(color.clone(), Rect {
-        x: border.x + border.width - dim.border.right,
-        y: border.y,
-        width: dim.border.right,
-        height: border.height
-    }));
+    cmds.push(DisplayCommand::SolidBlock(
+        color.clone(),
+        Rect {
+            x: border.x + border.width - dim.border.right,
+            y: border.y,
+            width: dim.border.right,
+            height: border.height,
+        },
+    ));
     // Top
-    cmds.push(DisplayCommand::SolidBlock(color.clone(), Rect {
-        x: border.x,
-        y: border.y,
-        width: border.width,
-        height: dim.border.top
-    }));
+    cmds.push(DisplayCommand::SolidBlock(
+        color.clone(),
+        Rect {
+            x: border.x,
+            y: border.y,
+            width: border.width,
+            height: dim.border.top,
+        },
+    ));
     // Bottom
-    cmds.push(DisplayCommand::SolidBlock(color.clone(), Rect {
-        x: border.x,
-        y: border.y + border.height - dim.border.bottom,
-        width: border.width,
-        height: dim.border.bottom
-    }));
+    cmds.push(DisplayCommand::SolidBlock(
+        color.clone(),
+        Rect {
+            x: border.x,
+            y: border.y + border.height - dim.border.bottom,
+            width: border.width,
+            height: dim.border.bottom,
+        },
+    ));
 
     Some(cmds)
+}
 
+fn render_text(s: &LayoutBox) -> Vec<DisplayCommand> {
+    if let BoxContentType::Text(t) = &s.box_content_type {
+        let size = s
+            .style
+            .get("font-size")
+            .map(|s| s.to_px().unwrap_or(11))
+            .unwrap_or(11) as f32;
+        vec![DisplayCommand::Text(
+            t.clone(),
+            size,
+            s.dimensions.border_box(),
+            BLACK,
+        )]
+    } else {
+        unreachable!()
+    }
 }
 
 pub struct Canvas {
     pub pixels: Vec<ColorValue>,
     width: usize,
-    height: usize
+    height: usize,
 }
 
 impl Canvas {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             pixels: std::iter::repeat(WHITE).take(width * height).collect(),
-            width, height
+            width,
+            height,
         }
     }
     fn paint_command(&mut self, cmd: &DisplayCommand) {
@@ -83,10 +137,40 @@ impl Canvas {
                 let y0 = rect.y.clamp(0, self.height);
                 let x1 = (rect.x + rect.width).clamp(0, self.width);
                 let y1 = (rect.y + rect.height).clamp(0, self.height);
-                for y in y0 .. y1 {
-                    for x in x0 .. x1 {
+                for y in y0..y1 {
+                    for x in x0..x1 {
                         self.pixels[x + y * self.width] = *color;
                     }
+                }
+            }
+            DisplayCommand::Text(text, size, rect, color) => {
+                let rasters: Vec<(_, _)> = text
+                    .chars()
+                    .map(|c| (ARIAL.rasterize(c, *size), c))
+                    .collect();
+                let height = rasters
+                    .iter()
+                    .map(|((m, _), _)| m.height)
+                    .max()
+                    .unwrap_or(0)
+                    .clamp(0, self.height);
+                let mut current_x = rect.x.clamp(0, self.width);
+                let y0 = rect.y.clamp(0, self.height);
+                for ((metrics, bitmap), c) in rasters {
+                    if c == ' ' {
+                        current_x += (*size * 0.3) as usize;
+                    }
+                    // Difference from top of 'box' to top of char
+                    let diff = height - metrics.height;
+                    let y0 = ((y0 + diff) as isize - metrics.ymin as isize) as usize;
+                    for (yb, y) in (y0..y0 + metrics.height).enumerate() {
+                        for (xb, x) in (current_x..current_x + metrics.width).enumerate() {
+                            if bitmap[xb + yb * metrics.width] >= 255/2 {
+                                self.pixels[x + y * self.width] = *color;
+                            }
+                        }
+                    }
+                    current_x += metrics.width + 3;
                 }
             }
         }
@@ -94,7 +178,7 @@ impl Canvas {
     pub fn render(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
         let (w, h) = (self.width as u32, self.height as u32);
         let buffer: Vec<image::Rgba<u8>> = self.pixels.iter().map(color_to_pix).collect();
-        image::ImageBuffer::from_fn(w, h, |x, y| buffer[(y*w+x) as usize])
+        image::ImageBuffer::from_fn(w, h, |x, y| buffer[(y * w + x) as usize])
     }
 }
 

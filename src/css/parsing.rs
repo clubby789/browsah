@@ -288,7 +288,8 @@ fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
     let selectors2 = alt((hash, class /*attrib*/, pseudo));
 
     let element_or_universal = alt((ident, map(tag("*"), str::to_string)));
-    let (input, (first, rest)) = tuple((alt((element_or_universal, selectors)), many0(selectors2)))(input)?;
+    let (input, (first, rest)) =
+        tuple((alt((element_or_universal, selectors)), many0(selectors2)))(input)?;
     let mut selectors = vec![first];
     selectors.extend(rest);
     Ok((input, selectors.into_iter().map(simple_selector).collect()))

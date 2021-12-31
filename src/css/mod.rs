@@ -144,6 +144,8 @@ impl Value {
         match self {
             Value::Numeric(NumericValue::Number(n)) => Some(*n as usize),
             Value::Dimension(NumericValue::Number(n), Unit::Px) => Some(*n as usize),
+            Value::Dimension(NumericValue::Number(n), Unit::Em) => Some(*n as usize),
+            Value::Multiple(multi) => multi.0.iter().filter_map(|(_, v)| v.to_px()).next(),
             _ => None,
         }
     }
