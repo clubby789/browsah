@@ -4,6 +4,7 @@ use crate::style::StyleMap;
 use fontdue::Font;
 use image::{ImageBuffer, Rgba};
 use lazy_static::lazy_static;
+use tracing::{span, Level};
 
 static ARIAL_TTF: &[u8] = include_bytes!("../resources/arial.ttf");
 lazy_static! {
@@ -175,6 +176,8 @@ impl Canvas {
         }
     }
     pub fn render(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+        let span = span!(Level::DEBUG, "Rendering to pixel buffer");
+        let _enter = span.enter();
         let (w, h) = (self.width as u32, self.height as u32);
         let buffer: Vec<image::Rgba<u8>> = self.pixels.iter().map(color_to_pix).collect();
         image::ImageBuffer::from_fn(w, h, |x, y| buffer[(y * w + x) as usize])
@@ -186,6 +189,10 @@ fn color_to_pix(val: &ColorValue) -> image::Rgba<u8> {
 }
 
 pub fn paint(root: &LayoutBox, bounds: Rect) -> Canvas {
+    let span = span!(Level::DEBUG, "Painting page");
+    let _enter = span.enter();
+    let span2 = span!(Level::DEBUG, "Generating DisplayList");
+    let _enter2 = span2.enter();
     let cmds = build_display_list(root);
     let mut canvas = Canvas::new(bounds.width, bounds.height);
     cmds.into_iter().for_each(|cmd| canvas.paint_command(&cmd));

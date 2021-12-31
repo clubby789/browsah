@@ -6,6 +6,10 @@ use clap::{AppSettings, Parser, Subcommand};
 use crate::display::paint;
 use crate::layout::{create_layout, LayoutBox, Rect};
 use std::fs;
+use tracing::{info, span, Level};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 /// Parsing of CSS
 mod css;
@@ -28,6 +32,8 @@ mod web;
 struct App {
     #[clap(subcommand)]
     pub command: Commands,
+    #[clap(short, long)]
+    pub trace: bool,
 }
 
 #[derive(Subcommand)]
@@ -40,6 +46,15 @@ enum Commands {
 
 fn main() {
     let args = App::parse();
+    if args.trace {
+        tracing_subscriber::fmt::fmt()
+            .with_span_events(FmtSpan::ACTIVE)
+            .with_max_level(Level::DEBUG)
+            .with_env_filter(EnvFilter::from_default_env())
+            .finish()
+            .init();
+        info!("Logger initialized");
+    }
     match args.command {
         Commands::Parse { filename } => parse_file(filename.as_str()),
         Commands::Request { url, output } => render_from_url(url.as_str(), output),
@@ -87,6 +102,8 @@ fn render_from_url(url: &str, output: String) {
         },
     );
     let img = canvas.render();
+    let span = span!(Level::DEBUG, "Saving result");
+    let _enter = span.enter();
     img.save(output).expect("Could not save to file");
 }
 

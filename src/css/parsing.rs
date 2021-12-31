@@ -6,10 +6,13 @@ use nom::combinator::{map, opt, peek, value, verify};
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{AsChar, IResult};
+use tracing::{span, Level};
 
 ///! Implements the CSS spec (https://github.com/antlr/grammars-v4/blob/master/css3/css3.g4)
 
 pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
+    let span = span!(Level::DEBUG, "Parsing Stylesheet");
+    let _enter = span.enter();
     let (input, _) = ws(input)?;
     let (input, _) = many0(pair(charset, ws))(input)?;
     let (input, _) = many0(pair(import, ws))(input)?;

@@ -7,13 +7,16 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1.0"
-clap = {version = "3.0.0-rc.7", features = ["derive", "std"], default-features = false}
-reqwest = {version = "0.11.7", features = ["blocking"]}
-url = {version = "2.2.2"}
-image = {version = "0.23.14", default-features = false, features = ["png"]}
+clap = { version = "3.0.0-rc.11", features = ["derive", "std"], default-features = false }
+reqwest = { version = "0.11.8", features = ["blocking"] }
+url = "2.2.2"
+image = { version = "0.23.14", default-features = false, features = ["png"] }
 fontdue = "0.6.2"
 lazy_static = "1.4.0"
+tracing = "0.1.29"
+tracing-subscriber = { version = "0.3.5", features = ["env-filter"] }
 
 [profile.release]
 strip = true
 lto = true
+panic = "abort"

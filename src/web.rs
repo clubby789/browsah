@@ -1,4 +1,5 @@
 use reqwest::blocking;
+use tracing::{span, Level};
 use url::Url;
 
 use crate::css;
@@ -73,6 +74,8 @@ impl Page {
 
     fn get_text_resource(url: impl Into<String>) -> Result<String, reqwest::Error> {
         let url = Url::parse(url.into().as_str()).expect("Could not parse URL");
+        let span = span!(Level::DEBUG, "Loading resource", "{}", &url);
+        let _enter = span.enter();
         if url.scheme() == "file" {
             Ok(std::fs::read_to_string(url.path()).expect("Could not access file"))
         } else {

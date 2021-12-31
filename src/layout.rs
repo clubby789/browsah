@@ -5,6 +5,7 @@ use crate::css::{NumericValue, TextValue, Value};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
+use tracing::{span, Level};
 
 #[derive(Debug)]
 pub struct LayoutBox {
@@ -116,6 +117,9 @@ pub struct EdgeSizes {
 }
 
 pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> LayoutBox {
+    let span = span!(Level::DEBUG, "Creating layout tree");
+    let _enter = span.enter();
+
     let (width, _) = viewport_size;
     let container = Dimensions {
         content: Rect {

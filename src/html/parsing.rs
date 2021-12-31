@@ -7,6 +7,7 @@ use nom::{
     sequence::{delimited, preceded, terminated, tuple},
     IResult,
 };
+use tracing::{span, Level};
 
 use super::*;
 
@@ -46,6 +47,8 @@ impl<'a> Tag<'a> {
 
 // TODO: `Document` type holding doctype
 pub fn document(input: &str) -> IResult<&str, DOMElement> {
+    let span = span!(Level::DEBUG, "Parsing HTML");
+    let _enter = span.enter();
     let (input, _) = ws(input)?;
     let (input, _) = opt(doctype)(input)?;
     let (input, _) = ws(input)?;
