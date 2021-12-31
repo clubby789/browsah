@@ -58,11 +58,12 @@ pub fn document(input: &str) -> IResult<&str, DOMElement> {
 }
 
 fn doctype(input: &str) -> IResult<&str, &str> {
-    let (input, (_, _, t, _, _)) = tuple((
+    let (input, (_, _, t, _, _, _)) = tuple((
         tag_no_case("<!DOCTYPE"),
         many1(space),
         tag_no_case("html"),
         many0(space),
+        opt(many0(none_of(">"))),
         char('>'),
     ))(input)?;
     Ok((input, t))
