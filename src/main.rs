@@ -47,7 +47,7 @@ fn parse_args() -> Result<Args, pico_args::Error> {
     let args = Args {
         input: pargs.free_from_str()?,
         output: pargs.free_from_str()?,
-        trace: pargs.contains(["--trace", "-t"]),
+        trace: pargs.contains(["-t", "--trace"]),
     };
     Ok(args)
 }
