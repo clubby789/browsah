@@ -220,6 +220,43 @@ impl ColorValue {
     }
 }
 
+pub fn interpolate_color(from: ColorValue, to: ColorValue, fac: f32) -> ColorValue {
+    if from == to {
+        return from;
+    }
+    let r = interpolate_val(from.r, to.r, fac);
+    let g = interpolate_val(from.g, to.g, fac);
+    let b = interpolate_val(from.b, to.b, fac);
+    let a = interpolate_val(from.a, to.a, fac);
+    ColorValue {r, g, b, a}
+
+}
+
+fn interpolate_val(from: u8, to: u8, fac: f32) -> u8 {
+    if from == to {
+        from
+    } else if from < to {
+        let diff = to - from;
+        to - (diff as f32 * fac) as u8
+    } else {
+        let diff = from - to;
+        from - (diff as f32 * fac) as u8
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_interpolate() {
+    let white = ColorValue::new(&[255, 255, 255, 255]);
+    let black = ColorValue::new(&[0, 0, 0, 255]);
+
+    assert_eq!(interpolate_color(white, black, 1.0), black);
+    assert_eq!(interpolate_color(white, black, 0.5), ColorValue::new(&[128, 128, 128, 255]));
+    assert_eq!(interpolate_color(white, black, 0.0), white);
+
+
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MultiValue(Vec<(Option<Operator>, Value)>);
 

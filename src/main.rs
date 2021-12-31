@@ -1,4 +1,5 @@
 #![feature(iter_intersperse)]
+#![feature(int_abs_diff)]
 
 use clap::{AppSettings, Parser, Subcommand};
 
@@ -81,8 +82,8 @@ fn render_from_url(url: &str, output: String) {
         Rect {
             x: 0,
             y: 0,
-            width: 500,
-            height: 500,
+            width: 1600,
+            height: 1080,
         },
     );
     let img = canvas.render();

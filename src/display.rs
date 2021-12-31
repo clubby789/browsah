@@ -165,9 +165,10 @@ impl Canvas {
                     let y0 = ((y0 + diff) as isize - metrics.ymin as isize) as usize;
                     for (yb, y) in (y0..y0 + metrics.height).enumerate() {
                         for (xb, x) in (current_x..current_x + metrics.width).enumerate() {
-                            if bitmap[xb + yb * metrics.width] >= 255/2 {
-                                self.pixels[x + y * self.width] = *color;
-                            }
+                            let percent = (bitmap[xb + yb * metrics.width] as f32)/255.0;
+                            let orig = self.pixels[x + y * self.width];
+                            self.pixels[x + y * self.width] = crate::css::interpolate_color(orig, *color, percent);
+
                         }
                     }
                     current_x += metrics.width + 3;
