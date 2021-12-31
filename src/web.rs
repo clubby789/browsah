@@ -4,7 +4,7 @@ use url::Url;
 use crate::css;
 use crate::css::Stylesheet;
 use crate::html::{self, DOMContent, DOMElement};
-use crate::style::StyledElement;
+use crate::style::{StyledElement, USER_AGENT_CSS};
 
 #[derive(Debug)]
 pub struct Page {
@@ -22,9 +22,10 @@ impl Page {
             .1;
         let mut page = Self::from_dom(doc, url);
         let styles = page.get_styles();
+        page.style_tree.apply_styles(&USER_AGENT_CSS.rules);
         styles
             .into_iter()
-            .for_each(|sheet| page.style_tree.apply_styles(sheet.rules));
+            .for_each(|sheet| page.style_tree.apply_styles(&sheet.rules));
         page
     }
 

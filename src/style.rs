@@ -1,10 +1,18 @@
 use super::html::DOMElement;
-use crate::css::{Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, TextValue, Value};
+use crate::css::{
+    stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, TextValue, Value,
+};
 use crate::html::{DOMAttributes, DOMContent};
+use lazy_static::lazy_static;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::Sum;
 use std::ops::{Add, Deref};
+
+static USER_AGENT_STYLESHEET: &str = include_str!("../resources/html.css");
+lazy_static! {
+    pub static ref USER_AGENT_CSS: Stylesheet = stylesheet(USER_AGENT_STYLESHEET).unwrap().1;
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct StyleMap(HashMap<String, (Value, Specificity)>);
@@ -188,17 +196,10 @@ fn element_is_excluded(elt: &DOMElement) -> bool {
     EXCLUDED.contains(&elt.name.as_str())
 }
 
-/// Create a [`StyledElement`] tree from the DOM and then apply a stylesheet to it
-pub fn construct_style_tree(dom: DOMElement, css: Stylesheet) -> StyledElement {
-    let mut tree: StyledElement = dom.into();
-    tree.apply_styles(css.rules);
-    tree
-}
-
 #[allow(dead_code)]
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
-    pub fn apply_styles(&mut self, styles: Vec<Ruleset>) {
+    pub fn apply_styles(&mut self, styles: &Vec<Ruleset>) {
         styles.iter().for_each(|r| {
             self.apply_rule(r);
         });
@@ -245,7 +246,8 @@ impl StyledElement {
         match selector {
             Selector::Simple(s) => self.does_simple_selector_apply(s),
             Selector::Compound(sels) => sels.iter().any(|s| self.does_simple_selector_apply(s)),
-            Selector::Combinator(_, _, _) => todo!(),
+            // TODO: Implement combinators
+            Selector::Combinator(_, _, _) => false,
         }
     }
 
