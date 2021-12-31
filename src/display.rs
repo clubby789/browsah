@@ -17,12 +17,10 @@ pub enum DisplayCommand {
 }
 
 pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
-    let mut list = vec![];
-    list.push(render_background(root));
-    list.extend(render_borders(root).unwrap_or(vec![]));
-    match &root.box_content_type {
-        BoxContentType::Text(_) => list.extend(render_text(root)),
-        _ => (),
+    let mut list = vec![render_background(root)];
+    list.extend(render_borders(root).unwrap_or_default());
+    if let BoxContentType::Text(_) = &root.box_content_type {
+        list.extend(render_text(root));
     }
     root.contents.iter().for_each(|c| {
         list.extend(build_display_list(c));
@@ -56,7 +54,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     let border = dim.border_box();
     // Left
     cmds.push(DisplayCommand::SolidBlock(
-        color.clone(),
+        *color,
         Rect {
             x: border.x,
             y: border.y,
@@ -66,7 +64,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Right
     cmds.push(DisplayCommand::SolidBlock(
-        color.clone(),
+        *color,
         Rect {
             x: border.x + border.width - dim.border.right,
             y: border.y,
@@ -76,7 +74,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Top
     cmds.push(DisplayCommand::SolidBlock(
-        color.clone(),
+        *color,
         Rect {
             x: border.x,
             y: border.y,
@@ -86,7 +84,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Bottom
     cmds.push(DisplayCommand::SolidBlock(
-        color.clone(),
+        *color,
         Rect {
             x: border.x,
             y: border.y + border.height - dim.border.bottom,
@@ -165,10 +163,10 @@ impl Canvas {
                     let y0 = ((y0 + diff) as isize - metrics.ymin as isize) as usize;
                     for (yb, y) in (y0..y0 + metrics.height).enumerate() {
                         for (xb, x) in (current_x..current_x + metrics.width).enumerate() {
-                            let percent = (bitmap[xb + yb * metrics.width] as f32)/255.0;
+                            let percent = (bitmap[xb + yb * metrics.width] as f32) / 255.0;
                             let orig = self.pixels[x + y * self.width];
-                            self.pixels[x + y * self.width] = crate::css::interpolate_color(orig, *color, percent);
-
+                            self.pixels[x + y * self.width] =
+                                crate::css::interpolate_color(orig, *color, percent);
                         }
                     }
                     current_x += metrics.width + 3;
