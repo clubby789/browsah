@@ -1,5 +1,5 @@
-use crate::css::Value;
 use crate::style::StyleMap;
+use css::Value;
 
 /// Takes a `padding`, and converts it to
 /// (`padding-top`, `padding-right`, `padding-bottom`, `padding-left`)
@@ -80,18 +80,12 @@ impl Padding {
     }
 }
 pub fn get_padding(style: &StyleMap) -> Padding {
-    let mut padding = Padding::new(
-        style
-            .get("padding")
-            .map(to_padding_sizes)
-            .flatten()
-            .unwrap_or((
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            )),
-    );
+    let mut padding = Padding::new(style.get("padding").and_then(to_padding_sizes).unwrap_or((
+        Value::Number(0.0),
+        Value::Number(0.0),
+        Value::Number(0.0),
+        Value::Number(0.0),
+    )));
     if let Some(pt) = style.get("padding-top") {
         padding.top = pt.clone();
     }
@@ -125,18 +119,12 @@ impl Margin {
     }
 }
 pub fn get_margins(style: &StyleMap) -> Margin {
-    let mut margin = Margin::new(
-        style
-            .get("margin")
-            .map(to_margin_sizes)
-            .flatten()
-            .unwrap_or((
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-                Value::Number(0.0),
-            ),
-    ));
+    let mut margin = Margin::new(style.get("margin").and_then(to_margin_sizes).unwrap_or((
+        Value::Number(0.0),
+        Value::Number(0.0),
+        Value::Number(0.0),
+        Value::Number(0.0),
+    )));
     if let Some(mt) = style.get("margin-top") {
         margin.top = mt.clone();
     }

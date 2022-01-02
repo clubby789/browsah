@@ -2,10 +2,10 @@
 
 mod properties;
 
-use crate::css::Value;
 use crate::layout::properties::{get_border, get_margins, get_padding, Margin, Padding};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
+use css::Value;
 use std::str::FromStr;
 use tracing::{span, Level};
 

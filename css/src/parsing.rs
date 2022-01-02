@@ -344,7 +344,10 @@ fn property(input: &str) -> IResult<&str, String> {
 fn expr(input: &str) -> IResult<&str, Value> {
     let (input, (result, others)) = pair(term, many0(pair(operator, term)))(input)?;
     if !others.is_empty() {
-        let all = [(None, result)].into_iter().chain(others.into_iter().map(|(op, t)| (Some(op), t))).collect();
+        let all = [(None, result)]
+            .into_iter()
+            .chain(others.into_iter().map(|(op, t)| (Some(op), t)))
+            .collect();
         Ok((input, Value::Multiple(MultiValue(all))))
     } else {
         Ok((input, result))
@@ -356,7 +359,13 @@ fn expr(input: &str) -> IResult<&str, Value> {
 fn test_expr() {
     use crate::css::Value::{Keyword, Length};
     let i = "5em auto";
-    let target = Ok(("", Value::Multiple(MultiValue(vec![(None, Length(5.0, Unit::Em)), (Some(Operator::Space), Keyword("auto".to_string()))]))));
+    let target = Ok((
+        "",
+        Value::Multiple(MultiValue(vec![
+            (None, Length(5.0, Unit::Em)),
+            (Some(Operator::Space), Keyword("auto".to_string())),
+        ])),
+    ));
     assert_eq!(expr(i), target);
 }
 

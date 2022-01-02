@@ -1,6 +1,6 @@
-use crate::css::{ColorValue, Value, BLACK, WHITE};
 use crate::layout::{BoxContentType, LayoutBox, Rect};
 use crate::style::StyleMap;
+use css::{ColorValue, Value, BLACK, WHITE};
 use fontdue::Font;
 use image::{ImageBuffer, Rgba};
 use lazy_static::lazy_static;
@@ -30,16 +30,13 @@ pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
 }
 
 fn get_color_value(style: &StyleMap, attr: impl Into<String>) -> Option<&ColorValue> {
-    style
-        .get(attr)
-        .map(|val| {
-            if let Value::Color(cv) = val {
-                Some(cv)
-            } else {
-                None
-            }
-        })
-        .flatten()
+    style.get(attr).and_then(|val| {
+        if let Value::Color(cv) = val {
+            Some(cv)
+        } else {
+            None
+        }
+    })
 }
 
 fn render_background(root: &LayoutBox) -> DisplayCommand {
@@ -167,7 +164,7 @@ impl Canvas {
                             let percent = (bitmap[xb + yb * metrics.width] as f32) / 255.0;
                             let orig = self.pixels[x + y * self.width];
                             self.pixels[x + y * self.width] =
-                                crate::css::interpolate_color(orig, *color, percent);
+                                css::interpolate_color(orig, *color, percent);
                         }
                     }
                     current_x += metrics.width + 3;

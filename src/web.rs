@@ -1,10 +1,9 @@
 use tracing::{span, Level};
 use url::Url;
 
-use crate::css;
-use crate::css::Stylesheet;
-use crate::html::{self, DOMContent, DOMElement};
 use crate::style::{StyledElement, USER_AGENT_CSS};
+use css::Stylesheet;
+use html::{self, DOMContent, DOMElement};
 
 #[derive(Debug)]
 pub struct Page {

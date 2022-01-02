@@ -1,3 +1,5 @@
+#![feature(iter_intersperse)]
+
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +57,7 @@ impl DOMElement {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DOMAttributes(pub HashMap<String, String>);
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! attributes {
     ($($name:expr => $value:expr),*) => {
         DOMAttributes(HashMap::from([
@@ -63,8 +65,6 @@ macro_rules! attributes {
         ]))
     }
 }
-#[allow(unused_imports)]
-pub(crate) use attributes;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DOMContent {

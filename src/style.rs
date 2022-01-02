@@ -1,6 +1,5 @@
-use super::html::DOMElement;
-use crate::css::{stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
-use crate::html::{DOMAttributes, DOMContent};
+use css::{stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
+use html::{DOMAttributes, DOMContent, DOMElement};
 use lazy_static::lazy_static;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -159,17 +158,11 @@ impl From<&SimpleSelector> for Specificity {
     }
 }
 
-impl From<DOMContent> for Option<StyledContent> {
+impl From<DOMContent> for StyledContent {
     fn from(content: DOMContent) -> Self {
         match content {
-            DOMContent::Text(s) => Some(StyledContent::Text((&s).into())),
-            DOMContent::Element(e) => {
-                if element_is_excluded(&e) {
-                    None
-                } else {
-                    Some(StyledContent::Element(e.into()))
-                }
-            }
+            DOMContent::Text(s) => StyledContent::Text((&s).into()),
+            DOMContent::Element(e) => StyledContent::Element(e.into()),
         }
     }
 }
@@ -182,7 +175,14 @@ impl From<DOMElement> for StyledElement {
             contents: element
                 .contents
                 .into_iter()
-                .filter_map(|e| e.into())
+                .filter(|c| {
+                    if let DOMContent::Element(elt) = c {
+                        !element_is_excluded(elt)
+                    } else {
+                        true
+                    }
+                })
+                .map(|e| e.into())
                 .collect(),
             attributes: element.attributes,
         }
@@ -317,7 +317,7 @@ impl StyledElement {
 #[cfg(test)]
 #[test]
 fn test_does_apply() {
-    use crate::{
+    use {
         css::{compound_selector, simple_selector},
         html::attributes,
     };

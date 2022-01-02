@@ -1,4 +1,3 @@
-#![feature(iter_intersperse)]
 #![feature(int_abs_diff)]
 
 use crate::display::paint;
@@ -8,11 +7,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
-/// Parsing of CSS
-mod css;
 mod display;
-/// Parsing of HTML to DOM
-mod html;
 /// Translation of a [`StyledElement`] tree into a tree of boxes
 mod layout;
 /// Application of CSS styles to HTML

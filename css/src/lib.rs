@@ -38,7 +38,7 @@ pub enum SimpleSelector {
     ID(String),
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! simple_selector {
     (#$x:expr) => {
         SimpleSelector::ID(stringify!($x).to_string())
@@ -56,24 +56,18 @@ macro_rules! simple_selector {
         SimpleSelector::Type(stringify!($x).to_string())
     };
 }
-#[allow(unused_imports)]
-pub(crate) use simple_selector;
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! compound_selector {
     ($($sel:expr),*) => {Selector::Compound(vec![$($sel),*])}
 }
-#[allow(unused_imports)]
-pub(crate) use compound_selector;
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! combinator_selector {
     ($l:expr,$c:expr,$r:expr) => {
         Selector::Combinator($l.into(), $c, $r.into())
     };
 }
-#[allow(unused_imports)]
-pub(crate) use combinator_selector;
 
 // [att]
 #[allow(dead_code)]
