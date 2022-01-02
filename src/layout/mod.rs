@@ -3,7 +3,7 @@
 mod properties;
 
 use crate::css::Value;
-use crate::layout::properties::{to_border_size, to_margin_sizes};
+use crate::layout::properties::{get_border, get_margins, get_padding, Margin, Padding};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
@@ -242,16 +242,19 @@ impl LayoutBox {
         let auto = Value::Keyword("auto".to_string());
         let default = Value::Number(0.0);
         let mut width = &style.get("width").cloned().unwrap_or_else(|| auto.clone());
-        let margins = style.get("margin").map( to_margin_sizes).flatten();
-        let (mut margin_left, mut margin_right) = margins
-            .map(|(_, top, _, left)| (top, left))
-            .unwrap_or((default.clone(), default.clone()));
-        let border = style.get("border-width").map( to_border_size).flatten().unwrap_or_else(|| default.clone());
-        let (border_left, border_right) = (border.clone(), border);
-        let paddings = style.get("padding").map( to_margin_sizes).flatten();
-        let (padding_left, padding_right) = paddings
-            .map(|(_, top, _, left)| (top, left))
-            .unwrap_or((default.clone(), default.clone()));
+        let margins = get_margins(style);
+        let Margin {
+            left: mut margin_left,
+            right: mut margin_right,
+            ..
+        } = margins;
+        let border = get_border(style);
+        let (border_left, border_right) = (border.left.width, border.right.width);
+        let Padding {
+            left: padding_left,
+            right: padding_right,
+            ..
+        } = get_padding(style);
         let total_width: usize = [
             &margin_left,
             &margin_right,

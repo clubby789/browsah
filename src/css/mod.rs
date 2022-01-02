@@ -214,6 +214,18 @@ fn test_interpolate() {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MultiValue(pub Vec<(Option<Operator>, Value)>);
 
+impl MultiValue {
+    pub fn is_space_separated(&self) -> bool {
+        self.0.iter().all(|v| {
+            if let Some(op) = v.0 {
+                matches!(op, Operator::Space)
+            } else {
+                true
+            }
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum Operator {

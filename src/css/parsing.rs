@@ -342,27 +342,36 @@ fn property(input: &str) -> IResult<&str, String> {
 
 /// Parse expression
 fn expr(input: &str) -> IResult<&str, Value> {
-    let (input, (result, others)) = pair(term, many0(pair(opt(operator), term)))(input)?;
+    let (input, (result, others)) = pair(term, many0(pair(operator, term)))(input)?;
     if !others.is_empty() {
-        let all = [(None, result)].into_iter().chain(others).collect();
+        let all = [(None, result)].into_iter().chain(others.into_iter().map(|(op, t)| (Some(op), t))).collect();
         Ok((input, Value::Multiple(MultiValue(all))))
     } else {
         Ok((input, result))
     }
 }
 
+#[cfg(test)]
+#[test]
+fn test_expr() {
+    use crate::css::Value::{Keyword, Length};
+    let i = "5em auto";
+    let target = Ok(("", Value::Multiple(MultiValue(vec![(None, Length(5.0, Unit::Em)), (Some(Operator::Space), Keyword("auto".to_string()))]))));
+    assert_eq!(expr(i), target);
+}
+
 /// Parse a term
 fn term(input: &str) -> IResult<&str, Value> {
     let (input, val) = alt((
         function,
-        terminated(percentage, ws),
-        terminated(dimension, ws),
-        terminated(number, ws),
-        terminated(map(string, Value::String), ws),
-        terminated(map(ident, Value::Keyword), ws),
-        terminated(map(variable, Value::Keyword), ws),
-        terminated(map(uri, Value::Url), ws),
-        terminated(hexcolor, ws),
+        percentage,
+        dimension,
+        number,
+        map(string, Value::String),
+        map(ident, Value::Keyword),
+        map(variable, Value::Keyword),
+        map(uri, Value::Url),
+        hexcolor,
         // calc,
     ))(input)?;
     // Apply transformations
