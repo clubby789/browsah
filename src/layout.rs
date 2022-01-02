@@ -1,7 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::css::TextValue::Keyword;
-use crate::css::{NumericValue, TextValue, Value};
+use crate::css::{Value};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
@@ -64,7 +63,7 @@ enum BoxType {
 
 impl From<&Value> for BoxType {
     fn from(v: &Value) -> Self {
-        if let Value::Textual(TextValue::Keyword(k)) = v {
+        if let Value::Keyword(k) = v {
             k.as_str().parse().unwrap_or(BoxType::Block)
         } else {
             BoxType::Block
@@ -237,8 +236,8 @@ impl LayoutBox {
             return self.calculate_text_block_width(container);
         }
         let style = &self.style;
-        let auto = Value::Textual(Keyword("auto".to_string()));
-        let default = Value::Numeric(NumericValue::Number(0.0));
+        let auto = Value::Keyword("auto".to_string());
+        let default = Value::Number(0.0);
         let mut width = &style.get("width").cloned().unwrap_or_else(|| auto.clone());
         let mut margin_left = style
             .get_fallback(&["margin", "margin-left"])
@@ -280,11 +279,11 @@ impl LayoutBox {
         }
         let underflow = container.content.width as isize - total_width as isize;
         // These values must be created outside the match so they live long enough
-        let underflow_val = Value::Numeric(NumericValue::Number(underflow as f64));
-        let adjusted_margin_right = Value::Numeric(NumericValue::Number(
+        let underflow_val = Value::Number(underflow as f64);
+        let adjusted_margin_right = Value::Number(
             (margin_right.to_px().unwrap_or(0) as isize + underflow) as f64,
-        ));
-        let half_underflow = Value::Numeric(NumericValue::Number(underflow as f64 / 2.0));
+        );
+        let half_underflow = Value::Number(underflow as f64 / 2.0);
         match (width == &auto, margin_left == &auto, margin_right == &auto) {
             (false, false, false) => margin_right = &adjusted_margin_right,
             (false, false, true) => margin_right = &underflow_val,
@@ -335,7 +334,7 @@ impl LayoutBox {
     fn calculate_block_position(&mut self, containing_block: Dimensions) {
         let style = &self.style;
         let dim = &mut self.dimensions;
-        let zero = Value::Numeric(NumericValue::Number(0.0));
+        let zero = Value::Number(0.0);
         dim.margin.top = style
             .get_fallback(&["margin-top", "margin"])
             .unwrap_or(&zero)

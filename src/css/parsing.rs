@@ -131,7 +131,7 @@ fn test_ruleset() {
         selectors: vec![Selector::Simple(simple_selector!(html))],
         declarations: vec![Declaration::new(
             "box-sizing",
-            Value::textual(TextValue::keyword("border-box")),
+            Value::Keyword("border-box".to_string()),
         )],
     };
     assert_eq!(ruleset(i), Ok(("", target)));
@@ -358,16 +358,16 @@ fn term(input: &str) -> IResult<&str, Value> {
         terminated(percentage, ws),
         terminated(dimension, ws),
         terminated(number, ws),
-        terminated(map(string, |s| Value::Textual(TextValue::String(s))), ws),
-        terminated(map(ident, |s| Value::Textual(TextValue::Keyword(s))), ws),
-        terminated(map(variable, |s| Value::Textual(TextValue::Keyword(s))), ws),
-        terminated(map(uri, |s| Value::Textual(TextValue::Url(s))), ws),
+        terminated(map(string, |s| Value::String(s)), ws),
+        terminated(map(ident, |s| Value::Keyword(s)), ws),
+        terminated(map(variable, |s| Value::Keyword(s)), ws),
+        terminated(map(uri, |s| Value::Url(s)), ws),
         terminated(hexcolor, ws),
         // calc,
     ))(input)?;
     // Apply transformations
     match val.clone() {
-        Value::Textual(TextValue::Keyword(s)) => Ok((input, keyword_to_value(s).unwrap_or(val))),
+        Value::Keyword(s) => Ok((input, keyword_to_value(s).unwrap_or(val))),
         Value::Function(f) => Ok((input, function_to_value(f).unwrap_or(val))),
         _ => Ok((input, val)),
     }
@@ -377,18 +377,18 @@ fn number(input: &str) -> IResult<&str, Value> {
     let (input, (sign, number)) = pair(opt(one_of("+-")), digit1)(input)?;
     let sign = sign.unwrap_or('+');
     let val = format!("{}{}", sign, number).parse().unwrap();
-    Ok((input, Value::Numeric(NumericValue::Number(val))))
+    Ok((input, Value::Number(val)))
 }
 fn percentage(input: &str) -> IResult<&str, Value> {
     let (input, (sign, number, _)) = tuple((opt(one_of("+-")), digit1, char('%')))(input)?;
     let sign = sign.unwrap_or('+');
     let val = format!("{}{}", sign, number).parse().unwrap();
-    Ok((input, Value::Numeric(NumericValue::Percentage(val))))
+    Ok((input, Value::Percentage(val)))
 }
 fn dimension(input: &str) -> IResult<&str, Value> {
     let (input, (value, unit)) = pair(number, dimension_unit)(input)?;
-    if let Value::Numeric(v) = value {
-        Ok((input, Value::Dimension(v, unit)))
+    if let Value::Number(v) = value {
+        Ok((input, Value::Length(v, unit)))
     } else {
         unreachable!()
     }

@@ -31,7 +31,7 @@ body {
                 selectors: vec![Selector::Simple(simple_selector!(html))],
                 declarations: vec![Declaration::new(
                     "box-sizing",
-                    Value::textual(TextValue::keyword("border-box")),
+                    Value::Keyword("border-box".to_string()),
                 )],
             },
             Ruleset {
@@ -42,7 +42,7 @@ body {
                 ],
                 declarations: vec![Declaration::new(
                     "box-sizing",
-                    Value::textual(TextValue::keyword("inherit")),
+                    Value::Keyword("inherit".to_string()),
                 )],
             },
             Ruleset {
@@ -50,11 +50,11 @@ body {
                 declarations: vec![
                     Declaration::new(
                         "-ms-text-size-adjust",
-                        Value::numeric(NumericValue::Percentage(100.0)),
+                        Value::Percentage(100.0),
                     ),
                     Declaration::new(
                         "-webkit-text-size-adjust",
-                        Value::numeric(NumericValue::Percentage(100.0)),
+                        Value::Percentage(100.0),
                     ),
                 ],
             },
@@ -62,7 +62,7 @@ body {
                 selectors: vec![Selector::Simple(simple_selector!(body))],
                 declarations: vec![Declaration::new(
                     "margin",
-                    Value::numeric(NumericValue::Number(0.0)),
+                    Value::Number(0.0),
                 )],
             },
         ],

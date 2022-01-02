@@ -109,71 +109,28 @@ impl Declaration {
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
-    Textual(TextValue),
-    Numeric(NumericValue),
-    Dimension(NumericValue, Unit),
+    Keyword(String),
+    String(String),
+    Url(String),
+    Number(f64),
+    Percentage(f64),
+    Length(f64, Unit),
     Color(ColorValue),
     Function(FunctionValue),
     Multiple(MultiValue),
-    Image,
-    Position,
 }
 
 #[allow(dead_code)]
 impl Value {
-    pub fn textual(v: impl Into<TextValue>) -> Self {
-        Self::Textual(v.into())
-    }
-    pub fn numeric(v: impl Into<NumericValue>) -> Self {
-        Self::Numeric(v.into())
-    }
-    pub fn dimension(v: impl Into<NumericValue>, u: impl Into<Unit>) -> Self {
-        Self::Dimension(v.into(), u.into())
-    }
-    pub fn color(v: impl Into<ColorValue>) -> Self {
-        Self::Color(v.into())
-    }
-    pub fn function(v: impl Into<FunctionValue>) -> Self {
-        Self::Function(v.into())
-    }
-    pub fn multiple(v: impl Into<MultiValue>) -> Self {
-        Self::Multiple(v.into())
-    }
     /// Attempts to convert this value to a concrete pixel size
     pub fn to_px(&self) -> Option<usize> {
         match self {
-            Value::Numeric(NumericValue::Number(n)) => Some(*n as usize),
-            Value::Dimension(NumericValue::Number(n), Unit::Px) => Some(*n as usize),
-            Value::Dimension(NumericValue::Number(n), Unit::Em) => Some(*n as usize),
+            Value::Number(n) => Some(*n as usize),
+            Value::Length(n, Unit::Px|Unit::Em) => Some(*n as usize),
             Value::Multiple(multi) => multi.0.iter().filter_map(|(_, v)| v.to_px()).next(),
             _ => None,
         }
     }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum TextValue {
-    Keyword(String),
-    String(String),
-    Url(String),
-}
-
-#[allow(dead_code)]
-impl TextValue {
-    pub fn keyword(v: impl Into<String>) -> Self {
-        Self::Keyword(v.into())
-    }
-    pub fn string(v: impl Into<String>) -> Self {
-        Self::String(v.into())
-    }
-    pub fn url(v: impl Into<String>) -> Self {
-        Self::Url(v.into())
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
-pub enum NumericValue {
-    Number(f64),
-    Percentage(f64),
 }
 
 #[allow(dead_code)]
@@ -287,7 +244,7 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
                 .iter()
                 .take(3)
                 .map(|v| {
-                    if let Value::Numeric(NumericValue::Number(val)) = v {
+                    if let Value::Number(val) = v {
                         *val as u8
                     } else {
                         unreachable!()
@@ -303,7 +260,7 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
                 .iter()
                 .take(4)
                 .map(|v| {
-                    if let Value::Numeric(NumericValue::Number(val)) = v {
+                    if let Value::Number(val) = v {
                         *val as u8
                     } else {
                         unreachable!()

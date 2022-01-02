@@ -1,6 +1,6 @@
 use super::html::DOMElement;
 use crate::css::{
-    stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, TextValue, Value,
+    stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value,
 };
 use crate::html::{DOMAttributes, DOMContent};
 use lazy_static::lazy_static;
@@ -218,7 +218,7 @@ impl StyledElement {
         {
             if style.declarations.iter().any(|decl| {
                 decl.name.as_str() == "display"
-                    && decl.value == Value::Textual(TextValue::Keyword("none".to_string()))
+                    && decl.value == Value::Keyword("none".to_string())
             }) {
                 return true;
             }
