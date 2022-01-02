@@ -14,7 +14,7 @@ lazy_static! {
 #[derive(Debug)]
 pub enum DisplayCommand {
     SolidBlock(ColorValue, Rect),
-    Text(String, f32, Rect, ColorValue),
+    Text(String, f64, Rect, ColorValue),
 }
 
 pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
@@ -56,7 +56,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
         Rect {
             x: border.x,
             y: border.y,
-            width: dim.border.left,
+            width: dim.border.left as f64,
             height: border.height,
         },
     ));
@@ -96,11 +96,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
 
 fn render_text(s: &LayoutBox) -> Vec<DisplayCommand> {
     if let BoxContentType::Text(t) = &s.box_content_type {
-        let size = s
-            .style
-            .get("font-size")
-            .map(|s| s.to_px().unwrap_or(11))
-            .unwrap_or(11) as f32;
+        let size = s.font_size;
         vec![DisplayCommand::Text(
             t.clone(),
             size,
@@ -129,10 +125,10 @@ impl Canvas {
     fn paint_command(&mut self, cmd: &DisplayCommand) {
         match cmd {
             DisplayCommand::SolidBlock(color, rect) => {
-                let x0 = rect.x.clamp(0, self.width);
-                let y0 = rect.y.clamp(0, self.height);
-                let x1 = (rect.x + rect.width).clamp(0, self.width);
-                let y1 = (rect.y + rect.height).clamp(0, self.height);
+                let x0 = rect.x.clamp(0.0, self.width as f64) as usize;
+                let y0 = rect.y.clamp(0.0, self.height as f64) as usize;
+                let x1 = (rect.x + rect.width).clamp(0.0, self.width as f64) as usize;
+                let y1 = (rect.y + rect.height).clamp(0.0, self.height as f64) as usize;
                 for y in y0..y1 {
                     for x in x0..x1 {
                         self.pixels[x + y * self.width] = *color;
@@ -142,7 +138,7 @@ impl Canvas {
             DisplayCommand::Text(text, size, rect, color) => {
                 let rasters: Vec<(_, _)> = text
                     .chars()
-                    .map(|c| (ARIAL.rasterize(c, *size), c))
+                    .map(|c| (ARIAL.rasterize(c, *size as f32), c))
                     .collect();
                 let height = rasters
                     .iter()
@@ -150,8 +146,8 @@ impl Canvas {
                     .max()
                     .unwrap_or(0)
                     .clamp(0, self.height);
-                let mut current_x = rect.x.clamp(0, self.width);
-                let y0 = rect.y.clamp(0, self.height);
+                let mut current_x = rect.x.clamp(0.0, self.width as f64) as usize;
+                let y0 = rect.y.clamp(0.0, self.height as f64) as usize;
                 for ((metrics, bitmap), c) in rasters {
                     if c == ' ' {
                         current_x += (*size * 0.3) as usize;
@@ -191,7 +187,7 @@ pub fn paint(root: &LayoutBox, bounds: Rect) -> Canvas {
     let span2 = span!(Level::DEBUG, "Generating DisplayList");
     let _enter2 = span2.enter();
     let cmds = build_display_list(root);
-    let mut canvas = Canvas::new(bounds.width, bounds.height);
+    let mut canvas = Canvas::new(bounds.width as usize, bounds.height as usize);
     cmds.into_iter().for_each(|cmd| canvas.paint_command(&cmd));
     canvas
 }

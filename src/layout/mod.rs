@@ -2,10 +2,10 @@
 
 mod properties;
 
-use crate::layout::properties::{get_border, get_margins, get_padding, Margin, Padding};
+use crate::layout::properties::{Border, get_border, get_margins, get_padding, Margin, Padding};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
-use css::Value;
+use css::{Unit, Value};
 use std::str::FromStr;
 use tracing::{span, Level};
 
@@ -16,6 +16,7 @@ pub struct LayoutBox {
     pub contents: Vec<LayoutBox>,
     pub style: StyleMap,
     pub box_content_type: BoxContentType,
+    pub font_size: f64
 }
 
 #[derive(Debug)]
@@ -93,10 +94,10 @@ impl FromStr for BoxType {
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Rect {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 impl Rect {
@@ -112,10 +113,10 @@ impl Rect {
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct EdgeSizes {
-    pub left: usize,
-    pub right: usize,
-    pub top: usize,
-    pub bottom: usize,
+    pub left: f64,
+    pub right: f64,
+    pub top: f64,
+    pub bottom: f64,
 }
 
 pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> LayoutBox {
@@ -125,10 +126,10 @@ pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> Lay
     let (width, _) = viewport_size;
     let container = Dimensions {
         content: Rect {
-            x: 0,
-            y: 0,
-            width,
-            height: 0,
+            x: 0.0,
+            y: 0.0,
+            width: width as f64,
+            height: 0.0,
         },
         margin: EdgeSizes::default(),
         border: EdgeSizes::default(),
@@ -140,6 +141,11 @@ pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> Lay
 }
 
 fn build_layout_tree(root: &StyledElement) -> LayoutBox {
+    let font_size = if let Some(Value::Number(n)) = root.styles.get("font-size") {
+        *n
+    } else {
+        16.0
+    };
     let mut root_box = LayoutBox {
         dimensions: Default::default(),
         box_type: root
@@ -150,6 +156,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
         contents: vec![],
         style: root.styles.clone(),
         box_content_type: BoxContentType::Normal,
+        font_size
     };
     for child in &root.contents {
         match child {
@@ -180,6 +187,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                     contents: vec![],
                     style: root.styles.clone(),
                     box_content_type: Text(text.contents.clone()),
+                    font_size
                 };
                 match box_type {
                     BoxType::Block => root_box.contents.push(the_box),
@@ -192,20 +200,38 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
     root_box
 }
 
+fn calculate_font_size(s: &StyleMap, parent_size: f64) -> f64 {
+    match s.get("font-size") {
+        Some(Value::Keyword(_)) => None,
+        Some(Value::Number(n)) => Some(*n),
+        Some(Value::Percentage(n)) => Some(*n * parent_size),
+        Some(Value::Length(n, unit)) => match unit {
+            Unit::Px => Some(*n),
+            Unit::Em => Some(*n * parent_size),
+            _ => None
+        }
+        _ => None
+    }.unwrap_or(parent_size)
+}
+
 impl LayoutBox {
-    fn new(box_type: BoxType) -> LayoutBox {
+    fn new(box_type: BoxType, font_size: f64) -> LayoutBox {
         LayoutBox {
             box_type,
             contents: vec![],
             dimensions: Default::default(),
             style: Default::default(),
             box_content_type: BoxContentType::Normal,
+            font_size
         }
     }
     fn layout(&mut self, container: Dimensions) {
         match self.box_type {
             BoxType::Block => self.layout_block(container),
             _ => todo!(),
+        }
+        for child in self.contents.iter_mut() {
+            child.font_size = calculate_font_size(&child.style, self.font_size);
         }
     }
 
@@ -220,7 +246,7 @@ impl LayoutBox {
                         box_type: BoxType::Anonymous,
                         ..
                     }) => {}
-                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous)),
+                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous, self.font_size)),
                 }
                 self.contents.last_mut().unwrap()
             }
@@ -255,7 +281,7 @@ impl LayoutBox {
             right: padding_right,
             ..
         } = get_padding(style);
-        let total_width: usize = [
+        let total_width = [
             &margin_left,
             &margin_right,
             &border_left,
@@ -265,8 +291,8 @@ impl LayoutBox {
             width,
         ]
         .iter()
-        .map(|v| v.to_px().unwrap_or(0))
-        .sum();
+        .map(|v| v.to_px(self.font_size).unwrap_or(0.0))
+        .sum::<f64>();
         if width != &auto && total_width > container.content.width {
             if margin_left == auto {
                 margin_left = default.clone();
@@ -279,7 +305,7 @@ impl LayoutBox {
         // These values must be created outside the match so they live long enough
         let underflow_val = Value::Number(underflow as f64);
         let adjusted_margin_right =
-            Value::Number((margin_right.to_px().unwrap_or(0) as isize + underflow) as f64);
+            Value::Number((margin_right.to_px(self.font_size).unwrap_or(0.0) as isize + underflow) as f64);
         let half_underflow = Value::Number(underflow as f64 / 2.0);
         match (width == &auto, margin_left == auto, margin_right == auto) {
             (false, false, false) => margin_right = adjusted_margin_right,
@@ -299,29 +325,30 @@ impl LayoutBox {
             }
         }
         let dim = &mut self.dimensions;
-        dim.content.width = width.to_px().unwrap();
-        dim.padding.left = padding_left.to_px().unwrap();
-        dim.padding.right = padding_right.to_px().unwrap();
-        dim.border.left = border_left.to_px().unwrap();
-        dim.border.right = border_right.to_px().unwrap();
-        dim.margin.left = margin_left.to_px().unwrap();
-        dim.margin.right = margin_right.to_px().unwrap();
+        dim.content.width = width.to_px(self.font_size).unwrap();
+        dim.padding.left = padding_left.to_px(self.font_size).unwrap();
+        dim.padding.right = padding_right.to_px(self.font_size).unwrap();
+        dim.border.left = border_left.to_px(self.font_size).unwrap();
+        dim.border.right = border_right.to_px(self.font_size).unwrap();
+        dim.margin.left = margin_left.to_px(self.font_size).unwrap();
+        dim.margin.right = margin_right.to_px(self.font_size).unwrap();
     }
 
     fn calculate_text_block_width(&mut self, container: Dimensions) {
         let font_size = self
             .style
             .get("font-size")
-            .map(|v| v.to_px().unwrap_or(11))
-            .unwrap_or(11);
+            .map(|v| v.to_px(self.font_size))
+            .flatten()
+            .unwrap_or(11.0);
         if let BoxContentType::Text(s) = &self.box_content_type {
             let dim = &mut self.dimensions;
-            dim.padding.left = 0;
-            dim.padding.right = 0;
-            dim.border.left = 0;
-            dim.border.right = 0;
-            dim.margin.left = 0;
-            dim.content.width = s.len() * font_size;
+            dim.padding.left = 0.0;
+            dim.padding.right = 0.0;
+            dim.border.left = 0.0;
+            dim.border.right = 0.0;
+            dim.margin.left = 0.0;
+            dim.content.width = s.len() as f64 * font_size;
             dim.content.height = font_size;
         } else {
             unreachable!();
@@ -332,36 +359,29 @@ impl LayoutBox {
         let style = &self.style;
         let dim = &mut self.dimensions;
         let zero = Value::Number(0.0);
-        dim.margin.top = style
-            .get_fallback(&["margin-top", "margin"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
-        dim.margin.bottom = style
-            .get_fallback(&["margin-bottom", "margin"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
-        dim.border.top = style
-            .get_fallback(&["border-top-width", "border-width"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
-        dim.border.bottom = style
-            .get_fallback(&["border-bottom-width", "border-width"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
-        dim.padding.top = style
-            .get_fallback(&["padding-top", "padding"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
-        dim.padding.bottom = style
-            .get_fallback(&["padding-top", "padding"])
-            .unwrap_or(&zero)
-            .to_px()
-            .unwrap();
+        let Margin {
+            top: margin_top,
+            bottom: margin_bottom,
+            ..
+        } = get_margins(style);
+        dim.margin.top = margin_top.to_px(self.font_size).unwrap();
+        dim.margin.bottom = margin_bottom.to_px(self.font_size).unwrap();
+
+        let Border {
+            top: border_top,
+            bottom: border_bottom,
+            ..
+        } = get_border(style);
+        dim.border.top = border_top.width.to_px(self.font_size).unwrap();
+        dim.border.bottom = border_bottom.width.to_px(self.font_size).unwrap();
+
+        let Padding {
+            top: padding_top,
+            bottom: padding_bottom,
+            ..
+        } = get_padding(style);
+        dim.padding.top = padding_top.to_px(self.font_size).unwrap();
+        dim.padding.bottom = padding_bottom.to_px(self.font_size).unwrap();
         dim.content.x =
             containing_block.content.x + dim.margin.left + dim.border.left + dim.padding.left;
         dim.content.y = containing_block.content.height
@@ -370,6 +390,8 @@ impl LayoutBox {
             + dim.border.top
             + dim.padding.top;
     }
+
+
     fn layout_block_children(&mut self) {
         let dim = &mut self.dimensions;
         self.contents.iter_mut().for_each(|c| {
@@ -379,8 +401,8 @@ impl LayoutBox {
     }
 
     fn calculate_block_height(&mut self) {
-        if let Some(n) = self.style.get("height").map(|v| v.to_px().unwrap_or(0)) {
-            self.dimensions.content.height = n as usize;
+        if let Some(n) = self.style.get("height").map(|v| v.to_px(self.font_size).unwrap_or(0.0)) {
+            self.dimensions.content.height = n;
         }
     }
 }

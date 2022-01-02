@@ -117,11 +117,12 @@ pub enum Value {
 #[allow(dead_code)]
 impl Value {
     /// Attempts to convert this value to a concrete pixel size
-    pub fn to_px(&self) -> Option<usize> {
+    pub fn to_px(&self, font_size: f64) -> Option<f64> {
         match self {
-            Value::Number(n) => Some(*n as usize),
-            Value::Length(n, Unit::Px | Unit::Em) => Some(*n as usize),
-            Value::Multiple(multi) => multi.0.iter().filter_map(|(_, v)| v.to_px()).next(),
+            Value::Number(n) => Some(*n),
+            Value::Length(n, Unit::Px) => Some(*n),
+            Value::Length(n, Unit::Em) => Some(*n * font_size),
+            Value::Percentage(n) => Some(*n * font_size),
             _ => None,
         }
     }

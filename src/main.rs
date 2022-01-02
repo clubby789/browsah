@@ -52,10 +52,10 @@ fn render_from_url(url: &str, output: String) {
     let canvas = paint(
         &layout,
         Rect {
-            x: 0,
-            y: 0,
-            width: 1600,
-            height: 1080,
+            x: 0.0,
+            y: 0.0,
+            width: 1600.0,
+            height: 1080.0,
         },
     );
     let img = canvas.render();
