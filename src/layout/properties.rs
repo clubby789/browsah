@@ -15,7 +15,7 @@ pub fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)>
             padding.clone(),
             padding.clone(),
             padding.clone(),
-       )),
+        )),
         Value::Multiple(values) => {
             // Must be a space seperated value
             if !values.0.iter().all(|v| {
@@ -34,18 +34,23 @@ pub fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)>
                     Some((top.clone(), left.clone(), top.clone(), left.clone()))
                 }
                 3 => {
-                    let (top, left, bottom): (&Value, &Value, &Value) = (&values.0[0].1, &values.0[1].1, &values.0[2].1);
+                    let (top, left, bottom): (&Value, &Value, &Value) =
+                        (&values.0[0].1, &values.0[1].1, &values.0[2].1);
                     Some((top.clone(), left.clone(), bottom.clone(), left.clone()))
                 }
                 4 => {
-                    let (top, right, bottom, left): (&Value, &Value, &Value, &Value) =
-                        (&values.0[0].1, &values.0[1].1, &values.0[2].1, &values.0[3].1);
+                    let (top, right, bottom, left): (&Value, &Value, &Value, &Value) = (
+                        &values.0[0].1,
+                        &values.0[1].1,
+                        &values.0[2].1,
+                        &values.0[3].1,
+                    );
                     Some((top.clone(), right.clone(), bottom.clone(), left.clone()))
-                },
-                _ => None
+                }
+                _ => None,
             }
-        },
-        _ => None
+        }
+        _ => None,
     }
 }
 
@@ -69,8 +74,17 @@ pub fn to_border_size(border: &Value) -> Option<Value> {
             }) {
                 return None;
             }
-            mv.0.iter().filter_map(|(_, v)| if matches!(v, Value::Number(_)) || matches!(v, Value::Length(_, _)) {Some(v)} else {None}).next().cloned()
-        },
-        _ => None
+            mv.0.iter()
+                .filter_map(|(_, v)| {
+                    if matches!(v, Value::Number(_)) || matches!(v, Value::Length(_, _)) {
+                        Some(v)
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .cloned()
+        }
+        _ => None,
     }
 }

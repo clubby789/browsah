@@ -3,6 +3,7 @@
 mod properties;
 
 use crate::css::Value;
+use crate::layout::properties::{to_border_size, to_margin_sizes};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
@@ -241,24 +242,16 @@ impl LayoutBox {
         let auto = Value::Keyword("auto".to_string());
         let default = Value::Number(0.0);
         let mut width = &style.get("width").cloned().unwrap_or_else(|| auto.clone());
-        let mut margin_left = style
-            .get_fallback(&["margin", "margin-left"])
-            .unwrap_or(&default);
-        let mut margin_right = style
-            .get_fallback(&["margin", "margin-right"])
-            .unwrap_or(&default);
-        let border_left = style
-            .get_fallback(&["border", "border-width", "border-left"])
-            .unwrap_or(&default);
-        let border_right = style
-            .get_fallback(&["border", "border-width", "border-right"])
-            .unwrap_or(&default);
-        let padding_left = style
-            .get_fallback(&["padding", "padding-left"])
-            .unwrap_or(&default);
-        let padding_right = style
-            .get_fallback(&["padding", "padding-right"])
-            .unwrap_or(&default);
+        let margins = style.get("margin").map( to_margin_sizes).flatten();
+        let (mut margin_left, mut margin_right) = margins
+            .map(|(_, top, _, left)| (top, left))
+            .unwrap_or((default.clone(), default.clone()));
+        let border = style.get("border-width").map( to_border_size).flatten().unwrap_or_else(|| default.clone());
+        let (border_left, border_right) = (border.clone(), border);
+        let paddings = style.get("padding").map( to_margin_sizes).flatten();
+        let (padding_left, padding_right) = paddings
+            .map(|(_, top, _, left)| (top, left))
+            .unwrap_or((default.clone(), default.clone()));
         let total_width: usize = [
             &margin_left,
             &margin_right,
@@ -266,17 +259,17 @@ impl LayoutBox {
             &border_right,
             &padding_left,
             &padding_right,
-            &width,
+            width,
         ]
         .iter()
         .map(|v| v.to_px().unwrap_or(0))
         .sum();
         if width != &auto && total_width > container.content.width {
-            if margin_left == &auto {
-                margin_left = &default;
+            if margin_left == auto {
+                margin_left = default.clone();
             }
-            if margin_right == &auto {
-                margin_right = &default;
+            if margin_right == auto {
+                margin_right = default.clone();
             }
         }
         let underflow = container.content.width as isize - total_width as isize;
@@ -285,21 +278,21 @@ impl LayoutBox {
         let adjusted_margin_right =
             Value::Number((margin_right.to_px().unwrap_or(0) as isize + underflow) as f64);
         let half_underflow = Value::Number(underflow as f64 / 2.0);
-        match (width == &auto, margin_left == &auto, margin_right == &auto) {
-            (false, false, false) => margin_right = &adjusted_margin_right,
-            (false, false, true) => margin_right = &underflow_val,
-            (false, true, false) => margin_left = &underflow_val,
+        match (width == &auto, margin_left == auto, margin_right == auto) {
+            (false, false, false) => margin_right = adjusted_margin_right,
+            (false, false, true) => margin_right = underflow_val,
+            (false, true, false) => margin_left = underflow_val,
             (true, _, _) => {
                 if underflow >= 0 {
                     width = &underflow_val
                 } else {
                     width = &default;
-                    margin_right = &adjusted_margin_right;
+                    margin_right = adjusted_margin_right;
                 }
             }
             (false, true, true) => {
-                margin_left = &half_underflow;
-                margin_right = &half_underflow;
+                margin_left = half_underflow.clone();
+                margin_right = half_underflow;
             }
         }
         let dim = &mut self.dimensions;
