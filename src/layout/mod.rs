@@ -2,7 +2,7 @@
 
 mod properties;
 
-use crate::layout::properties::{Border, get_border, get_margins, get_padding, Margin, Padding};
+use crate::layout::properties::{get_border, get_margins, get_padding, Border, Margin, Padding};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use css::{Unit, Value};
@@ -16,7 +16,7 @@ pub struct LayoutBox {
     pub contents: Vec<LayoutBox>,
     pub style: StyleMap,
     pub box_content_type: BoxContentType,
-    pub font_size: f64
+    pub font_size: f64,
 }
 
 #[derive(Debug)]
@@ -156,7 +156,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
         contents: vec![],
         style: root.styles.clone(),
         box_content_type: BoxContentType::Normal,
-        font_size
+        font_size,
     };
     for child in &root.contents {
         match child {
@@ -187,7 +187,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                     contents: vec![],
                     style: root.styles.clone(),
                     box_content_type: Text(text.contents.clone()),
-                    font_size
+                    font_size,
                 };
                 match box_type {
                     BoxType::Block => root_box.contents.push(the_box),
@@ -208,10 +208,11 @@ fn calculate_font_size(s: &StyleMap, parent_size: f64) -> f64 {
         Some(Value::Length(n, unit)) => match unit {
             Unit::Px => Some(*n),
             Unit::Em => Some(*n * parent_size),
-            _ => None
-        }
-        _ => None
-    }.unwrap_or(parent_size)
+            _ => None,
+        },
+        _ => None,
+    }
+    .unwrap_or(parent_size)
 }
 
 impl LayoutBox {
@@ -222,7 +223,7 @@ impl LayoutBox {
             dimensions: Default::default(),
             style: Default::default(),
             box_content_type: BoxContentType::Normal,
-            font_size
+            font_size,
         }
     }
     fn layout(&mut self, container: Dimensions) {
@@ -246,7 +247,9 @@ impl LayoutBox {
                         box_type: BoxType::Anonymous,
                         ..
                     }) => {}
-                    _ => self.contents.push(LayoutBox::new(BoxType::Anonymous, self.font_size)),
+                    _ => self
+                        .contents
+                        .push(LayoutBox::new(BoxType::Anonymous, self.font_size)),
                 }
                 self.contents.last_mut().unwrap()
             }
@@ -304,8 +307,9 @@ impl LayoutBox {
         let underflow = container.content.width as isize - total_width as isize;
         // These values must be created outside the match so they live long enough
         let underflow_val = Value::Number(underflow as f64);
-        let adjusted_margin_right =
-            Value::Number((margin_right.to_px(self.font_size).unwrap_or(0.0) as isize + underflow) as f64);
+        let adjusted_margin_right = Value::Number(
+            (margin_right.to_px(self.font_size).unwrap_or(0.0) as isize + underflow) as f64,
+        );
         let half_underflow = Value::Number(underflow as f64 / 2.0);
         match (width == &auto, margin_left == auto, margin_right == auto) {
             (false, false, false) => margin_right = adjusted_margin_right,
@@ -338,8 +342,7 @@ impl LayoutBox {
         let font_size = self
             .style
             .get("font-size")
-            .map(|v| v.to_px(self.font_size))
-            .flatten()
+            .and_then(|v| v.to_px(self.font_size))
             .unwrap_or(11.0);
         if let BoxContentType::Text(s) = &self.box_content_type {
             let dim = &mut self.dimensions;
@@ -391,7 +394,6 @@ impl LayoutBox {
             + dim.padding.top;
     }
 
-
     fn layout_block_children(&mut self) {
         let dim = &mut self.dimensions;
         self.contents.iter_mut().for_each(|c| {
@@ -401,7 +403,11 @@ impl LayoutBox {
     }
 
     fn calculate_block_height(&mut self) {
-        if let Some(n) = self.style.get("height").map(|v| v.to_px(self.font_size).unwrap_or(0.0)) {
+        if let Some(n) = self
+            .style
+            .get("height")
+            .map(|v| v.to_px(self.font_size).unwrap_or(0.0))
+        {
             self.dimensions.content.height = n;
         }
     }

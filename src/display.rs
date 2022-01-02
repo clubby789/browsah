@@ -1,6 +1,7 @@
 use crate::layout::{BoxContentType, LayoutBox, Rect};
 use crate::style::StyleMap;
 use css::{ColorValue, Value, BLACK, WHITE};
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
 use fontdue::Font;
 use image::{ImageBuffer, Rgba};
 use lazy_static::lazy_static;
@@ -136,34 +137,30 @@ impl Canvas {
                 }
             }
             DisplayCommand::Text(text, size, rect, color) => {
-                let rasters: Vec<(_, _)> = text
-                    .chars()
-                    .map(|c| (ARIAL.rasterize(c, *size as f32), c))
-                    .collect();
-                let height = rasters
-                    .iter()
-                    .map(|((m, _), _)| m.height)
-                    .max()
-                    .unwrap_or(0)
-                    .clamp(0, self.height);
-                let mut current_x = rect.x.clamp(0.0, self.width as f64) as usize;
+                let x0 = rect.x.clamp(0.0, self.width as f64) as usize;
                 let y0 = rect.y.clamp(0.0, self.height as f64) as usize;
-                for ((metrics, bitmap), c) in rasters {
-                    if c == ' ' {
-                        current_x += (*size * 0.3) as usize;
-                    }
-                    // Difference from top of 'box' to top of char
-                    let diff = height - metrics.height;
-                    let y0 = ((y0 + diff) as isize - metrics.ymin as isize) as usize;
-                    for (yb, y) in (y0..y0 + metrics.height).enumerate() {
-                        for (xb, x) in (current_x..current_x + metrics.width).enumerate() {
-                            let percent = (bitmap[xb + yb * metrics.width] as f32) / 255.0;
+
+                let fonts = &[ARIAL.clone()];
+                let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                layout.reset(&LayoutSettings {
+                    x: x0 as f32,
+                    y: y0 as f32,
+                    max_width: Some(rect.width as f32),
+                    ..Default::default()
+                });
+                layout.append(fonts, &TextStyle::new(text, *size as f32, 0));
+                for glyph in layout.glyphs() {
+                    let y_start = glyph.y as usize;
+                    let x_start = glyph.x as usize;
+                    let (_, bitmap) = ARIAL.rasterize(glyph.parent, *size as f32);
+                    for (yb, y) in (y_start..y_start + glyph.height).enumerate() {
+                        for (xb, x) in (x_start..x_start + glyph.width).enumerate() {
+                            let percent = (bitmap[xb + yb * glyph.width] as f32) / 255.0;
                             let orig = self.pixels[x + y * self.width];
                             self.pixels[x + y * self.width] =
                                 css::interpolate_color(orig, *color, percent);
                         }
                     }
-                    current_x += metrics.width + 3;
                 }
             }
         }
