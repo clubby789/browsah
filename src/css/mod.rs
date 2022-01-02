@@ -126,7 +126,7 @@ impl Value {
     pub fn to_px(&self) -> Option<usize> {
         match self {
             Value::Number(n) => Some(*n as usize),
-            Value::Length(n, Unit::Px|Unit::Em) => Some(*n as usize),
+            Value::Length(n, Unit::Px | Unit::Em) => Some(*n as usize),
             Value::Multiple(multi) => multi.0.iter().filter_map(|(_, v)| v.to_px()).next(),
             _ => None,
         }
@@ -212,7 +212,7 @@ fn test_interpolate() {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MultiValue(Vec<(Option<Operator>, Value)>);
+pub struct MultiValue(pub Vec<(Option<Operator>, Value)>);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]

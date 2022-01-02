@@ -1,6 +1,8 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::css::{Value};
+mod properties;
+
+use crate::css::Value;
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use std::str::FromStr;
@@ -280,9 +282,8 @@ impl LayoutBox {
         let underflow = container.content.width as isize - total_width as isize;
         // These values must be created outside the match so they live long enough
         let underflow_val = Value::Number(underflow as f64);
-        let adjusted_margin_right = Value::Number(
-            (margin_right.to_px().unwrap_or(0) as isize + underflow) as f64,
-        );
+        let adjusted_margin_right =
+            Value::Number((margin_right.to_px().unwrap_or(0) as isize + underflow) as f64);
         let half_underflow = Value::Number(underflow as f64 / 2.0);
         match (width == &auto, margin_left == &auto, margin_right == &auto) {
             (false, false, false) => margin_right = &adjusted_margin_right,

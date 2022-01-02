@@ -1,7 +1,5 @@
 use super::html::DOMElement;
-use crate::css::{
-    stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value,
-};
+use crate::css::{stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
 use crate::html::{DOMAttributes, DOMContent};
 use lazy_static::lazy_static;
 use std::cmp::Ordering;
@@ -199,7 +197,7 @@ fn element_is_excluded(elt: &DOMElement) -> bool {
 #[allow(dead_code)]
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
-    pub fn apply_styles(&mut self, styles: &Vec<Ruleset>) {
+    pub fn apply_styles(&mut self, styles: &[Ruleset]) {
         styles.iter().for_each(|r| {
             self.apply_rule(r);
         });
@@ -217,8 +215,7 @@ impl StyledElement {
             .max()
         {
             if style.declarations.iter().any(|decl| {
-                decl.name.as_str() == "display"
-                    && decl.value == Value::Keyword("none".to_string())
+                decl.name.as_str() == "display" && decl.value == Value::Keyword("none".to_string())
             }) {
                 return true;
             }

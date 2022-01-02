@@ -48,22 +48,13 @@ body {
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(html))],
                 declarations: vec![
-                    Declaration::new(
-                        "-ms-text-size-adjust",
-                        Value::Percentage(100.0),
-                    ),
-                    Declaration::new(
-                        "-webkit-text-size-adjust",
-                        Value::Percentage(100.0),
-                    ),
+                    Declaration::new("-ms-text-size-adjust", Value::Percentage(100.0)),
+                    Declaration::new("-webkit-text-size-adjust", Value::Percentage(100.0)),
                 ],
             },
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(body))],
-                declarations: vec![Declaration::new(
-                    "margin",
-                    Value::Number(0.0),
-                )],
+                declarations: vec![Declaration::new("margin", Value::Number(0.0))],
             },
         ],
     };
