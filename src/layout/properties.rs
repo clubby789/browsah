@@ -1,5 +1,5 @@
 use crate::style::StyleMap;
-use css::{ColorValue, MultiValue, Value};
+use css::{ColorValue, Value};
 
 /// Takes a `padding`, and converts it to
 /// (`padding-top`, `padding-right`, `padding-bottom`, `padding-left`)
@@ -178,28 +178,23 @@ pub fn get_border(style: &StyleMap) -> Border {
     if let Some(val) = style.get("border") {
         let (width, border_style, color) = process_border(val);
         if let Some(width) = width {
-            if let Some((top, right, bottom, left)) = to_border_sides(&width) {
-                border.left.width = left;
-                border.right.width = right;
-                border.bottom.width = bottom;
-                border.top.width = top;
-            }
+            border.left.width = width.clone();
+            border.right.width = width.clone();
+            border.bottom.width = width.clone();
+            border.top.width = width;
+
         }
         if let Some(style) = border_style {
-            if let Some((top, right, bottom, left)) = to_border_sides(&style) {
-                border.left.style = left;
-                border.right.style = right;
-                border.bottom.style = bottom;
-                border.top.style = top;
-            }
+                border.left.style = style.clone();
+                border.right.style = style.clone();
+                border.bottom.style = style.clone();
+                border.top.style = style;
         }
         if let Some(color) = color {
-            if let Some((top, right, bottom, left)) = to_border_sides(&color) {
-                border.left.color = left;
-                border.right.color = right;
-                border.bottom.color = bottom;
-                border.top.color = top;
-            }
+            border.left.color = color.clone();
+            border.right.color = color.clone();
+            border.bottom.color = color.clone();
+            border.top.color = color;
         }
     }
     if let Some(val) = style.get("border-left") {
@@ -252,7 +247,7 @@ fn to_border_side(val: &Value) -> BorderSide {
 }
 
 /// Tries to extract a `border-width`, `border-style` and `border-color` from the `border` property
-/// These can appear in any order and be of variable length
+/// These can appear in any order
 fn process_border(val: &Value) -> (Option<Value>, Option<Value>, Option<Value>) {
     if let Value::Multiple(mv) = val {
         if !mv.is_space_separated() {
@@ -261,48 +256,28 @@ fn process_border(val: &Value) -> (Option<Value>, Option<Value>, Option<Value>) 
         let values: Vec<&Value> = mv.0.iter().map(|(_, val)| val).collect();
 
         let width = {
-            if let Some(start) = values.iter().position(|v| v.is_width()) {
-                let width_vals: Vec<&Value> = values[start..]
-                    .iter()
-                    .cloned()
-                    .take_while(|v| v.is_width())
-                    .collect();
-                Some(Value::Multiple(MultiValue::new_space_seperated(
-                    &width_vals,
-                )))
-            } else {
-                None
-            }
+            values
+                .iter()
+                .cloned()
+                .filter(|&v| v.is_width())
+                .cloned()
+                .next()
         };
-
         let style = {
-            if let Some(start) = values.iter().position(|v| v.is_border_style()) {
-                let width_vals: Vec<&Value> = values[start..]
-                    .iter()
-                    .cloned()
-                    .take_while(|v| v.is_border_style())
-                    .collect();
-                Some(Value::Multiple(MultiValue::new_space_seperated(
-                    &width_vals,
-                )))
-            } else {
-                None
-            }
+            values
+                .iter()
+                .cloned()
+                .filter(|&v| v.is_border_style())
+                .cloned()
+                .next()
         };
-
         let color = {
-            if let Some(start) = values.iter().position(|v| v.is_color()) {
-                let width_vals: Vec<&Value> = values[start..]
-                    .iter()
-                    .cloned()
-                    .take_while(|v| v.is_color())
-                    .collect();
-                Some(Value::Multiple(MultiValue::new_space_seperated(
-                    &width_vals,
-                )))
-            } else {
-                None
-            }
+            values
+                .iter()
+                .cloned()
+                .filter(|&v| v.is_color())
+                .cloned()
+                .next()
         };
         (width, style, color)
     } else {
