@@ -48,13 +48,13 @@ fn render_background(root: &LayoutBox) -> DisplayCommand {
 }
 
 fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
-    let color = get_color_value(&root.style, "border-color")?;
     let mut cmds = Vec::with_capacity(4);
     let dim = root.dimensions;
     let border = dim.border_box();
+    let border_details = root.border.as_ref()?;
     // Left
     cmds.push(DisplayCommand::SolidBlock(
-        *color,
+        border_details.left.color.try_to_color().unwrap(),
         Rect {
             x: border.x,
             y: border.y,
@@ -64,7 +64,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Right
     cmds.push(DisplayCommand::SolidBlock(
-        *color,
+        border_details.right.color.try_to_color().unwrap(),
         Rect {
             x: border.x + border.width - dim.border.right,
             y: border.y,
@@ -74,7 +74,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Top
     cmds.push(DisplayCommand::SolidBlock(
-        *color,
+        border_details.top.color.try_to_color().unwrap(),
         Rect {
             x: border.x,
             y: border.y,
@@ -84,7 +84,7 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     ));
     // Bottom
     cmds.push(DisplayCommand::SolidBlock(
-        *color,
+        border_details.bottom.color.try_to_color().unwrap(),
         Rect {
             x: border.x,
             y: border.y + border.height - dim.border.bottom,

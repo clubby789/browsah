@@ -19,6 +19,7 @@ pub struct LayoutBox {
     pub style: StyleMap,
     pub box_content_type: BoxContentType,
     pub font_size: f64,
+    pub border: Option<Border>
 }
 
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -162,6 +163,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
         style: root.styles.clone(),
         box_content_type: BoxContentType::Normal,
         font_size,
+        border: None
     };
     for child in &root.contents {
         match child {
@@ -193,6 +195,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                     style: root.styles.clone(),
                     box_content_type: Text(text.contents.clone()),
                     font_size,
+                    border: None
                 };
                 match box_type {
                     BoxType::Block => root_box.contents.push(the_box),
@@ -229,6 +232,7 @@ impl LayoutBox {
             style: Default::default(),
             box_content_type: BoxContentType::Normal,
             font_size,
+            border: None
         }
     }
     fn layout(&mut self, container: Dimensions) {
@@ -283,7 +287,8 @@ impl LayoutBox {
             ..
         } = margins;
         let border = get_border(style);
-        let (border_left, border_right) = (border.left.width, border.right.width);
+        let (border_left, border_right) = (border.left.width.clone(), border.right.width.clone());
+        self.border = Some(border);
         let Padding {
             left: padding_left,
             right: padding_right,

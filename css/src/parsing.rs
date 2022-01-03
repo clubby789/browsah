@@ -372,7 +372,7 @@ fn test_expr() {
 
 /// Parse a term
 fn term(input: &str) -> IResult<&str, Value> {
-    let (input, val) = alt((
+    alt((
         function,
         percentage,
         dimension,
@@ -383,13 +383,7 @@ fn term(input: &str) -> IResult<&str, Value> {
         map(uri, Value::Url),
         hexcolor,
         // calc,
-    ))(input)?;
-    // Apply transformations
-    match val.clone() {
-        Value::Keyword(s) => Ok((input, keyword_to_value(s).unwrap_or(val))),
-        Value::Function(f) => Ok((input, function_to_value(f).unwrap_or(val))),
-        _ => Ok((input, val)),
-    }
+    ))(input)
 }
 
 fn number(input: &str) -> IResult<&str, Value> {

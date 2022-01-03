@@ -145,12 +145,14 @@ pub fn get_margins(style: &StyleMap) -> Margin {
 }
 
 #[derive(Default)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Border {
     pub left: BorderSide,
     pub right: BorderSide,
     pub top: BorderSide,
     pub bottom: BorderSide,
 }
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct BorderSide {
     pub width: Value,
     pub style: Value,
