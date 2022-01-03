@@ -5,7 +5,7 @@ use crate::style::{StyledElement, USER_AGENT_CSS};
 use css::Stylesheet;
 use html::{self, DOMContent, DOMElement};
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Page {
     url: Url,
     dom: DOMElement,

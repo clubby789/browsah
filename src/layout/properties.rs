@@ -101,7 +101,7 @@ pub fn get_padding(style: &StyleMap) -> Padding {
     padding
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Margin {
     pub top: Value,
     pub right: Value,

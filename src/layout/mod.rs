@@ -11,7 +11,7 @@ use fontdue::layout::LayoutSettings;
 use std::str::FromStr;
 use tracing::{span, Level};
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct LayoutBox {
     pub dimensions: Dimensions,
     box_type: BoxType,
@@ -21,7 +21,7 @@ pub struct LayoutBox {
     pub font_size: f64,
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum BoxContentType {
     Normal,
     Image,
@@ -40,7 +40,8 @@ fn get_content_type(content: &StyledContent) -> BoxContentType {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Default)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Dimensions {
     pub content: Rect,
     pub margin: EdgeSizes,
@@ -60,7 +61,8 @@ impl Dimensions {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 enum BoxType {
     Block,
     Inline,
@@ -94,7 +96,8 @@ impl FromStr for BoxType {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Default)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Rect {
     pub x: f64,
     pub y: f64,
@@ -363,7 +366,8 @@ impl LayoutBox {
                 .iter()
                 .max_by_key(|v| v.x as usize)
                 .map(|x| x.x + x.width as f32)
-                .unwrap_or(0.0) as f64 + 2.0;
+                .unwrap_or(0.0) as f64
+                + 2.0;
             dim.content.height = layout.height() as f64;
         } else {
             unreachable!();

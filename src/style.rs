@@ -11,7 +11,8 @@ lazy_static! {
     pub static ref USER_AGENT_CSS: Stylesheet = stylesheet(USER_AGENT_STYLESHEET).unwrap().1;
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct StyleMap(HashMap<String, (Value, Specificity)>);
 
 impl StyleMap {
@@ -27,7 +28,7 @@ impl StyleMap {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct StyledElement {
     pub name: String,
     pub attributes: DOMAttributes,
@@ -36,7 +37,7 @@ pub struct StyledElement {
     pub styles: StyleMap,
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct StyledString {
     pub contents: String,
     pub styles: StyleMap,
@@ -51,7 +52,7 @@ impl From<&String> for StyledString {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum StyledContent {
     Element(StyledElement),
     Text(StyledString),
@@ -74,7 +75,8 @@ impl StyledElement {
 }
 
 // Attrs, IDs, Classes, Elements
-#[derive(PartialEq, Copy, Clone, Default, Debug, Eq)]
+#[derive(PartialEq, Copy, Clone, Default, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Specificity(usize, usize, usize, usize);
 
 impl From<(usize, usize, usize, usize)> for Specificity {

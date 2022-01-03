@@ -1,22 +1,26 @@
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Stylesheet {
     pub rules: Vec<Ruleset>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Ruleset {
     pub selectors: Vec<Selector>,
     pub declarations: Vec<Declaration>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Selector {
     Simple(SimpleSelector),
     Compound(Vec<SimpleSelector>),
     Combinator(Box<Selector>, Combinator, Box<Selector>),
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Combinator {
     // ( )
     Descendant,
@@ -28,7 +32,8 @@ pub enum Combinator {
     SubsequentSibling,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum SimpleSelector {
     Type(String),
     Universal,
@@ -71,7 +76,8 @@ macro_rules! combinator_selector {
 
 // [att]
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum AttributeSelector {
     // [att]
     Has(String),
@@ -84,7 +90,8 @@ pub enum AttributeSelector {
     Begins(String, String),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Declaration {
     pub name: String,
     pub value: Value,
@@ -101,7 +108,8 @@ impl Declaration {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Value {
     Keyword(String),
     String(String),
@@ -129,7 +137,8 @@ impl Value {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Unit {
     Cm,
     Mm,
@@ -149,7 +158,8 @@ pub enum Unit {
     Vmax,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct ColorValue {
     pub r: u8,
     pub g: u8,
@@ -206,7 +216,8 @@ fn test_interpolate() {
     assert_eq!(interpolate_color(white, black, 0.0), white);
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct MultiValue(pub Vec<(Option<Operator>, Value)>);
 
 impl MultiValue {
@@ -221,7 +232,8 @@ impl MultiValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 #[repr(u8)]
 pub enum Operator {
     Slash = b'/',
@@ -230,7 +242,8 @@ pub enum Operator {
     Equals = b'=',
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct FunctionValue(String, Vec<Value>);
 
 mod keywords;

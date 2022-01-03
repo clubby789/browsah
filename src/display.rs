@@ -12,7 +12,7 @@ lazy_static! {
     static ref ARIAL: Font = Font::from_bytes(ARIAL_TTF, fontdue::FontSettings::default()).unwrap();
 }
 
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum DisplayCommand {
     SolidBlock(ColorValue, Rect),
     Text(String, f64, Rect, ColorValue),
