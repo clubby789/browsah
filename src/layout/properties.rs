@@ -1,5 +1,5 @@
 use crate::style::StyleMap;
-use css::Value;
+use css::{ColorValue, MultiValue, Value};
 
 /// Takes a `padding`, and converts it to
 /// (`padding-top`, `padding-right`, `padding-bottom`, `padding-left`)
@@ -23,7 +23,11 @@ fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)> {
                 return None;
             }
             match values.0.len() {
-                0..=1 => unreachable!("Multi-value with zero or one values"),
+                0 => unreachable!("Multi-value with no values"),
+                1 => {
+                    let v = &values.0[0].1;
+                    Some((v.clone(), v.clone(), v.clone(), v.clone()))
+                }
                 2 => {
                     let (top, left): (&Value, &Value) = (&values.0[0].1, &values.0[1].1);
                     Some((top.clone(), left.clone(), top.clone(), left.clone()))
@@ -159,7 +163,7 @@ impl Default for BorderSide {
         Self {
             width: Value::Number(0.0),
             style: Value::Number(0.0),
-            color: Value::Number(0.0),
+            color: Value::Color(ColorValue::black()),
         }
     }
 }
@@ -170,11 +174,14 @@ pub fn get_border(style: &StyleMap) -> Border {
     let mut border = Border::default();
 
     if let Some(val) = style.get("border") {
-        if let Some((top, right, bottom, left)) = to_border_sizes(val) {
-            border.top.width = top;
-            border.right.width = right;
-            border.bottom.width = bottom;
-            border.left.width = left;
+        let (width, _style, _color) = process_border(val);
+        if let Some(width) = width {
+            if let Some((top, right, bottom, left)) = to_border_sizes(&width) {
+                border.left = to_border_side(&left);
+                border.right = to_border_side(&right);
+                border.bottom = to_border_side(&bottom);
+                border.top = to_border_side(&top);
+            }
         }
     }
     if let Some(val) = style.get("border-left") {
@@ -223,5 +230,64 @@ fn to_border_side(val: &Value) -> BorderSide {
             width: val.clone(),
             ..Default::default()
         },
+    }
+}
+
+/// Tries to extract a `border-width`, `border-style` and `border-color` from the `border` property
+/// These can appear in any order and be of variable length
+fn process_border(val: &Value) -> (Option<Value>, Option<Value>, Option<Value>) {
+    if let Value::Multiple(mv) = val {
+        if !mv.is_space_separated() {
+            return (None, None, None);
+        }
+        let values: Vec<&Value> = mv.0.iter().map(|(_, val)| val).collect();
+
+        let width = {
+            if let Some(start) = values.iter().position(|v| v.is_width()) {
+                let width_vals: Vec<&Value> = values[start..]
+                    .iter()
+                    .cloned()
+                    .take_while(|v| v.is_width())
+                    .collect();
+                Some(Value::Multiple(MultiValue::new_space_seperated(
+                    &width_vals,
+                )))
+            } else {
+                None
+            }
+        };
+
+        let style = {
+            if let Some(start) = values.iter().position(|v| v.is_border_style()) {
+                let width_vals: Vec<&Value> = values[start..]
+                    .iter()
+                    .cloned()
+                    .take_while(|v| v.is_border_style())
+                    .collect();
+                Some(Value::Multiple(MultiValue::new_space_seperated(
+                    &width_vals,
+                )))
+            } else {
+                None
+            }
+        };
+
+        let color = {
+            if let Some(start) = values.iter().position(|v| v.is_color()) {
+                let width_vals: Vec<&Value> = values[start..]
+                    .iter()
+                    .cloned()
+                    .take_while(|v| v.is_color())
+                    .collect();
+                Some(Value::Multiple(MultiValue::new_space_seperated(
+                    &width_vals,
+                )))
+            } else {
+                None
+            }
+        };
+        (width, style, color)
+    } else {
+        (None, None, None)
     }
 }
