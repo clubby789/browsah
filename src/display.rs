@@ -140,15 +140,14 @@ impl Canvas {
                 let x0 = rect.x.clamp(0.0, self.width as f64) as usize;
                 let y0 = rect.y.clamp(0.0, self.height as f64) as usize;
 
-                let fonts = &[ARIAL.clone()];
-                let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-                layout.reset(&LayoutSettings {
+                let settings = LayoutSettings {
                     x: x0 as f32,
                     y: y0 as f32,
                     max_width: Some(rect.width as f32),
                     ..Default::default()
-                });
-                layout.append(fonts, &TextStyle::new(text, *size as f32, 0));
+                };
+
+                let mut layout = get_rasterized_layout(text, *size as f32, &settings);
                 for glyph in layout.glyphs() {
                     let y_start = glyph.y as usize;
                     let x_start = glyph.x as usize;
@@ -187,4 +186,12 @@ pub fn paint(root: &LayoutBox, bounds: Rect) -> Canvas {
     let mut canvas = Canvas::new(bounds.width as usize, bounds.height as usize);
     cmds.into_iter().for_each(|cmd| canvas.paint_command(&cmd));
     canvas
+}
+
+pub fn get_rasterized_layout(text: &str, font_size: f32, settings: &LayoutSettings) -> Layout {
+    let fonts = &[ARIAL.clone()];
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+    layout.reset(settings);
+    layout.append(fonts, &TextStyle::new(text, font_size, 0));
+    layout
 }

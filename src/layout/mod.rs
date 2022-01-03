@@ -2,10 +2,12 @@
 
 mod properties;
 
+use crate::display::get_rasterized_layout;
 use crate::layout::properties::{get_border, get_margins, get_padding, Border, Margin, Padding};
 use crate::layout::BoxContentType::Text;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use css::{Unit, Value};
+use fontdue::layout::LayoutSettings;
 use std::str::FromStr;
 use tracing::{span, Level};
 
@@ -339,20 +341,30 @@ impl LayoutBox {
     }
 
     fn calculate_text_block_width(&mut self, container: Dimensions) {
-        let font_size = self
-            .style
-            .get("font-size")
-            .and_then(|v| v.to_px(self.font_size))
-            .unwrap_or(11.0);
+        let settings = LayoutSettings {
+            max_width: Some(container.border_box().width as f32),
+            ..Default::default()
+        };
         if let BoxContentType::Text(s) = &self.box_content_type {
+            let font_size = self
+                .style
+                .get("font-size")
+                .and_then(|v| v.to_px(self.font_size))
+                .unwrap_or(self.font_size);
+            let mut layout = get_rasterized_layout(s, font_size as f32, &settings);
             let dim = &mut self.dimensions;
             dim.padding.left = 0.0;
             dim.padding.right = 0.0;
             dim.border.left = 0.0;
             dim.border.right = 0.0;
             dim.margin.left = 0.0;
-            dim.content.width = s.len() as f64 * font_size;
-            dim.content.height = font_size;
+            dim.content.width = layout
+                .glyphs()
+                .iter()
+                .max_by_key(|v| v.x as usize)
+                .map(|x| x.x + x.width as f32)
+                .unwrap_or(0.0) as f64 + 2.0;
+            dim.content.height = layout.height() as f64;
         } else {
             unreachable!();
         }
