@@ -1,3 +1,5 @@
+//! Implements the CSS spec <https://github.com/antlr/grammars-v4/blob/master/css3/css3.g4>
+
 use super::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until};
@@ -8,8 +10,7 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{AsChar, IResult};
 use tracing::{span, Level};
 
-///! Implements the CSS spec (https://github.com/antlr/grammars-v4/blob/master/css3/css3.g4)
-
+/// Parses a CSS source file to a [`Stylesheet`]
 pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
     let span = span!(Level::DEBUG, "Parsing Stylesheet");
     let _enter = span.enter();

@@ -299,7 +299,7 @@ impl LayoutBox {
             width,
         ]
         .iter()
-        .map(|v| v.to_px(self.font_size).unwrap_or(0.0))
+        .map(|v| v.try_to_px(self.font_size).unwrap_or(0.0))
         .sum::<f64>();
         if width != &auto && total_width > container.content.width {
             if margin_left == auto {
@@ -313,7 +313,7 @@ impl LayoutBox {
         // These values must be created outside the match so they live long enough
         let underflow_val = Value::Number(underflow as f64);
         let adjusted_margin_right = Value::Number(
-            (margin_right.to_px(self.font_size).unwrap_or(0.0) as isize + underflow) as f64,
+            (margin_right.try_to_px(self.font_size).unwrap_or(0.0) as isize + underflow) as f64,
         );
         let half_underflow = Value::Number(underflow as f64 / 2.0);
         match (width == &auto, margin_left == auto, margin_right == auto) {
@@ -334,13 +334,13 @@ impl LayoutBox {
             }
         }
         let dim = &mut self.dimensions;
-        dim.content.width = width.to_px(self.font_size).unwrap();
-        dim.padding.left = padding_left.to_px(self.font_size).unwrap();
-        dim.padding.right = padding_right.to_px(self.font_size).unwrap();
-        dim.border.left = border_left.to_px(self.font_size).unwrap();
-        dim.border.right = border_right.to_px(self.font_size).unwrap();
-        dim.margin.left = margin_left.to_px(self.font_size).unwrap();
-        dim.margin.right = margin_right.to_px(self.font_size).unwrap();
+        dim.content.width = width.try_to_px(self.font_size).unwrap();
+        dim.padding.left = padding_left.try_to_px(self.font_size).unwrap();
+        dim.padding.right = padding_right.try_to_px(self.font_size).unwrap();
+        dim.border.left = border_left.try_to_px(self.font_size).unwrap();
+        dim.border.right = border_right.try_to_px(self.font_size).unwrap();
+        dim.margin.left = margin_left.try_to_px(self.font_size).unwrap();
+        dim.margin.right = margin_right.try_to_px(self.font_size).unwrap();
     }
 
     fn calculate_text_block_width(&mut self, container: Dimensions) {
@@ -352,7 +352,7 @@ impl LayoutBox {
             let font_size = self
                 .style
                 .get("font-size")
-                .and_then(|v| v.to_px(self.font_size))
+                .and_then(|v| v.try_to_px(self.font_size))
                 .unwrap_or(self.font_size);
             let mut layout = get_rasterized_layout(s, font_size as f32, &settings);
             let dim = &mut self.dimensions;
@@ -383,24 +383,24 @@ impl LayoutBox {
             bottom: margin_bottom,
             ..
         } = get_margins(style);
-        dim.margin.top = margin_top.to_px(self.font_size).unwrap();
-        dim.margin.bottom = margin_bottom.to_px(self.font_size).unwrap();
+        dim.margin.top = margin_top.try_to_px(self.font_size).unwrap();
+        dim.margin.bottom = margin_bottom.try_to_px(self.font_size).unwrap();
 
         let Border {
             top: border_top,
             bottom: border_bottom,
             ..
         } = get_border(style);
-        dim.border.top = border_top.width.to_px(self.font_size).unwrap();
-        dim.border.bottom = border_bottom.width.to_px(self.font_size).unwrap();
+        dim.border.top = border_top.width.try_to_px(self.font_size).unwrap();
+        dim.border.bottom = border_bottom.width.try_to_px(self.font_size).unwrap();
 
         let Padding {
             top: padding_top,
             bottom: padding_bottom,
             ..
         } = get_padding(style);
-        dim.padding.top = padding_top.to_px(self.font_size).unwrap();
-        dim.padding.bottom = padding_bottom.to_px(self.font_size).unwrap();
+        dim.padding.top = padding_top.try_to_px(self.font_size).unwrap();
+        dim.padding.bottom = padding_bottom.try_to_px(self.font_size).unwrap();
         dim.content.x =
             containing_block.content.x + dim.margin.left + dim.border.left + dim.padding.left;
         dim.content.y = containing_block.content.height
@@ -422,7 +422,7 @@ impl LayoutBox {
         if let Some(n) = self
             .style
             .get("height")
-            .map(|v| v.to_px(self.font_size).unwrap_or(0.0))
+            .map(|v| v.try_to_px(self.font_size).unwrap_or(0.0))
         {
             self.dimensions.content.height = n;
         }

@@ -8,7 +8,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 mod display;
-/// Translation of a [`StyledElement`] tree into a tree of boxes
+/// Translation of a [`style::StyledElement`] tree into a tree of boxes
 mod layout;
 /// Application of CSS styles to HTML
 #[allow(dead_code)]

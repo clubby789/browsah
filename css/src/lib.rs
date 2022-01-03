@@ -125,12 +125,21 @@ pub enum Value {
 #[allow(dead_code)]
 impl Value {
     /// Attempts to convert this value to a concrete pixel size
-    pub fn to_px(&self, font_size: f64) -> Option<f64> {
+    pub fn try_to_px(&self, font_size: f64) -> Option<f64> {
         match self {
             Value::Number(n) => Some(*n),
             Value::Length(n, Unit::Px) => Some(*n),
             Value::Length(n, Unit::Em) => Some(*n * font_size),
             Value::Percentage(n) => Some(*n * font_size),
+            _ => None,
+        }
+    }
+    /// Attempts this valid to a color
+    pub fn try_to_color(&self) -> Option<ColorValue> {
+        match self {
+            Value::Keyword(_) => None,
+            Value::Color(col) => Some(*col),
+            Value::Function(_) => None,
             _ => None,
         }
     }

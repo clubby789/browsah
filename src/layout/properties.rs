@@ -60,9 +60,9 @@ fn to_margin_sizes(margin: &Value) -> Option<(Value, Value, Value, Value)> {
     to_padding_sizes(margin)
 }
 
-/// Takes a `border-width` and converts it to
-/// (`border-top`, `border-right`, `border-bottom`, `border-left`)
-fn to_border_sizes(border: &Value) -> Option<(Value, Value, Value, Value)> {
+/// Takes a `border-<prop>` and converts it to
+/// (`border-top-<prop>`, `border-right-<prop>`, `border-bottom-<proper>`, `border-left-<prop>`)
+fn to_border_sides(border: &Value) -> Option<(Value, Value, Value, Value)> {
     // Same logic as padding
     to_padding_sizes(border)
 }
@@ -174,13 +174,29 @@ pub fn get_border(style: &StyleMap) -> Border {
     let mut border = Border::default();
 
     if let Some(val) = style.get("border") {
-        let (width, _style, _color) = process_border(val);
+        let (width, border_style, color) = process_border(val);
         if let Some(width) = width {
-            if let Some((top, right, bottom, left)) = to_border_sizes(&width) {
-                border.left = to_border_side(&left);
-                border.right = to_border_side(&right);
-                border.bottom = to_border_side(&bottom);
-                border.top = to_border_side(&top);
+            if let Some((top, right, bottom, left)) = to_border_sides(&width) {
+                border.left.width = left;
+                border.right.width = right;
+                border.bottom.width = bottom;
+                border.top.width = top;
+            }
+        }
+        if let Some(style) = border_style {
+            if let Some((top, right, bottom, left)) = to_border_sides(&style) {
+                border.left.style = left;
+                border.right.style = right;
+                border.bottom.style = bottom;
+                border.top.style = top;
+            }
+        }
+        if let Some(color) = color {
+            if let Some((top, right, bottom, left)) = to_border_sides(&color) {
+                border.left.color = left;
+                border.right.color = right;
+                border.bottom.color = bottom;
+                border.top.color = top;
             }
         }
     }

@@ -18,6 +18,7 @@ pub enum DisplayCommand {
     Text(String, f64, Rect, ColorValue),
 }
 
+/// Construct list of [`DisplayCommand`]s from a number of drawable [`LayoutBox`]es
 pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
     let mut list = vec![render_background(root)];
     list.extend(render_borders(root).unwrap_or_default());
