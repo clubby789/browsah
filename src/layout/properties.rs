@@ -182,13 +182,12 @@ pub fn get_border(style: &StyleMap) -> Border {
             border.right.width = width.clone();
             border.bottom.width = width.clone();
             border.top.width = width;
-
         }
         if let Some(style) = border_style {
-                border.left.style = style.clone();
-                border.right.style = style.clone();
-                border.bottom.style = style.clone();
-                border.top.style = style;
+            border.left.style = style.clone();
+            border.right.style = style.clone();
+            border.bottom.style = style.clone();
+            border.top.style = style;
         }
         if let Some(color) = color {
             border.left.color = color.clone();
