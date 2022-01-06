@@ -1,17 +1,21 @@
 #![feature(int_abs_diff)]
 
-use crate::display::paint;
 use crate::layout::{create_layout, LayoutBox, Rect};
-use tracing::{debug, info, span, trace, Level};
+use paint::paint;
+use tracing::{info, span, Level};
 
-mod display;
-/// Translation of a [`style::StyledElement`] tree into a tree of boxes
-mod layout;
-/// Application of CSS styles to HTML
-#[allow(dead_code)]
-mod style;
 /// Fetching of resources from the web
 mod web;
+/// Application of CSS styles to HTML
+mod style;
+/// Translation of a [`style::StyledElement`] tree into a tree of boxes
+mod layout;
+/// Conversion into list of [`display::DisplayCommand`]
+mod display;
+/// Painting [`display::DisplayCommand`]s onto a [`paint::Canvas`]
+mod paint;
+
+
 
 struct Args {
     pub input: String,
@@ -43,8 +47,6 @@ fn main() {
             .with(fmt_layer.with_filter(filter))
             .init();
         info!("Logger initialized");
-        debug!("Debug");
-        trace!("Trace");
     }
 
     render_from_url(args.input.as_str(), args.output);

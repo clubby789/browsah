@@ -2,9 +2,9 @@
 
 mod properties;
 
-use crate::display::get_rasterized_layout;
 use crate::layout::properties::{get_border, get_margins, get_padding, Border, Margin, Padding};
 use crate::layout::BoxContentType::Text;
+use crate::paint::get_rasterized_layout;
 use crate::style::{StyleMap, StyledContent, StyledElement};
 use css::{Unit, Value};
 use fontdue::layout::LayoutSettings;
