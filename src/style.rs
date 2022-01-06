@@ -19,13 +19,6 @@ impl StyleMap {
     pub fn get(&self, value: impl Into<String>) -> Option<&Value> {
         self.0.get(value.into().as_str()).map(|v| &v.0)
     }
-    pub fn get_fallback(&self, value: &[&str]) -> Option<&Value> {
-        value
-            .iter()
-            .filter_map(|v| self.0.get(&v.to_string()))
-            .next()
-            .map(|v| &v.0)
-    }
 }
 
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -295,7 +288,7 @@ impl StyledElement {
     ) {
         declarations.iter().for_each(|decl| {
             let (name, value) = (decl.name.clone(), decl.value.clone());
-            self.styles.0.insert(name, (value, spec));
+            self.insert(name, value, spec);
         });
         let inherited: Vec<Declaration> = if inherit_all {
             // If this is true, we aren't in the top level and our declarations have already been
