@@ -5,7 +5,7 @@ use css::{ColorValue, Value};
 /// (`padding-top`, `padding-right`, `padding-bottom`, `padding-left`)
 fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)> {
     match padding {
-        Value::Number(v) | Value::Length(v, _) => Some((
+        Value::Number(..) | Value::Length(..) => Some((
             padding.clone(),
             padding.clone(),
             padding.clone(),
@@ -58,13 +58,6 @@ fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)> {
 fn to_margin_sizes(margin: &Value) -> Option<(Value, Value, Value, Value)> {
     // Same logic as padding
     to_padding_sizes(margin)
-}
-
-/// Takes a `border-<prop>` and converts it to
-/// (`border-top-<prop>`, `border-right-<prop>`, `border-bottom-<proper>`, `border-left-<prop>`)
-fn to_border_sides(border: &Value) -> Option<(Value, Value, Value, Value)> {
-    // Same logic as padding
-    to_padding_sizes(border)
 }
 
 pub struct Padding {

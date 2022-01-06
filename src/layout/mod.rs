@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 mod properties;
 
 use crate::layout::properties::{get_border, get_margins, get_padding, Border, Margin, Padding};
@@ -23,22 +21,11 @@ pub struct LayoutBox {
 }
 
 #[cfg_attr(debug_assertions, derive(Debug))]
+#[allow(dead_code)]
 pub enum BoxContentType {
     Normal,
     Image,
     Text(String),
-}
-
-fn get_content_type(content: &StyledContent) -> BoxContentType {
-    match content {
-        StyledContent::Element(elt) => {
-            if elt.name.as_str() == "img" {
-                return BoxContentType::Image;
-            };
-            BoxContentType::Normal
-        }
-        StyledContent::Text(txt) => BoxContentType::Text(txt.contents.clone()),
-    }
 }
 
 #[derive(Copy, Clone, Default)]
@@ -382,7 +369,6 @@ impl LayoutBox {
     fn calculate_block_position(&mut self, containing_block: Dimensions) {
         let style = &self.style;
         let dim = &mut self.dimensions;
-        let zero = Value::Number(0.0);
         let Margin {
             top: margin_top,
             bottom: margin_bottom,

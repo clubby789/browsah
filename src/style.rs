@@ -189,7 +189,6 @@ fn element_is_excluded(elt: &DOMElement) -> bool {
     EXCLUDED.contains(&elt.name.as_str())
 }
 
-#[allow(dead_code)]
 impl StyledElement {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
     pub fn apply_styles(&mut self, styles: &[Ruleset]) {

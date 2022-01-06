@@ -122,7 +122,6 @@ pub enum Value {
     Multiple(MultiValue),
 }
 
-#[allow(dead_code)]
 impl Value {
     /// Attempts to convert this value to a concrete pixel size
     pub fn try_to_px(&self, font_size: f64) -> Option<f64> {
