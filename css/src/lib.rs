@@ -239,26 +239,6 @@ impl ColorValue {
     }
 }
 
-pub fn interpolate_color(from: ColorValue, to: ColorValue, fac: f32) -> ColorValue {
-    if from == to {
-        return from;
-    }
-    let r = interpolate_val(from.r, to.r, fac);
-    let g = interpolate_val(from.g, to.g, fac);
-    let b = interpolate_val(from.b, to.b, fac);
-    let a = interpolate_val(from.a, to.a, fac);
-    ColorValue { r, g, b, a }
-}
-
-fn interpolate_val(from: u8, to: u8, fac: f32) -> u8 {
-    use std::cmp::Ordering;
-    match from.cmp(&to) {
-        Ordering::Equal => from,
-        Ordering::Less => to - ((to - from) as f32 * fac) as u8,
-        Ordering::Greater => from - ((from - to) as f32 * fac) as u8,
-    }
-}
-
 #[cfg(test)]
 #[test]
 fn test_interpolate() {

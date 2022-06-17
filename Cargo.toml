@@ -12,10 +12,9 @@ edition = "2021"
 pico-args = {version = "0.4.2"}
 ureq = "2.4.0"
 url = "2.2.2"
-image = { version = "0.23.14", default-features = false, features = ["png"] }
+image = { version = "0.23.14", default-features = false, features = ["png", "jpeg"] }
 fontdue = "0.6.2"
 tracing = "0.1.29"
-# tracing-subscriber = { version = "0.3.5", features = ["env-filter"] }
 tracing-subscriber = {version = "0.3.5"}
 css = {path = "css"}
 html = {path = "html"}

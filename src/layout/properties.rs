@@ -248,7 +248,7 @@ fn process_border(val: &Value) -> (Option<Value>, Option<Value>, Option<Value>) 
         let values: Vec<&Value> = mv.0.iter().map(|(_, val)| val).collect();
 
         let width = { values.iter().cloned().cloned().find(Value::is_width) };
-        let style = { values.iter().cloned().cloned().find(Value::is_border_style)};
+        let style = { values.iter().cloned().cloned().find(Value::is_border_style) };
         let color = { values.iter().cloned().cloned().find(Value::is_color) };
         (width, style, color)
     } else {
