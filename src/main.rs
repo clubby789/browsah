@@ -1,21 +1,17 @@
-#![feature(int_abs_diff)]
-
 use crate::layout::{create_layout, LayoutBox, Rect};
 use paint::paint;
 use tracing::{info, span, Level};
 
-/// Fetching of resources from the web
-mod web;
-/// Application of CSS styles to HTML
-mod style;
-/// Translation of a [`style::StyledElement`] tree into a tree of boxes
-mod layout;
 /// Conversion into list of [`display::DisplayCommand`]
 mod display;
+/// Translation of a [`style::StyledElement`] tree into a tree of boxes
+mod layout;
 /// Painting [`display::DisplayCommand`]s onto a [`paint::Canvas`]
 mod paint;
-
-
+/// Application of CSS styles to HTML
+mod style;
+/// Fetching of resources from the web
+mod web;
 
 struct Args {
     pub input: String,

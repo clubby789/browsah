@@ -340,7 +340,7 @@ impl LayoutBox {
             max_width: Some(container.border_box().width as f32),
             ..Default::default()
         };
-        if let BoxContentType::Text(s) = &self.box_content_type {
+        if let Text(s) = &self.box_content_type {
             let font_size = self
                 .style
                 .get("font-size")

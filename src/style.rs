@@ -1,15 +1,14 @@
 use css::{stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
 use html::{DOMAttributes, DOMContent, DOMElement};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::Sum;
 use std::ops::{Add, Deref};
 
 static USER_AGENT_STYLESHEET: &str = include_str!("../resources/html.css");
-lazy_static! {
-    pub static ref USER_AGENT_CSS: Stylesheet = stylesheet(USER_AGENT_STYLESHEET).unwrap().1;
-}
+pub static USER_AGENT_CSS: Lazy<Stylesheet> =
+    Lazy::new(|| stylesheet(USER_AGENT_STYLESHEET).unwrap().1);
 
 #[derive(Default, Clone)]
 #[cfg_attr(debug_assertions, derive(Debug))]

@@ -4,13 +4,12 @@ use css::{ColorValue, WHITE};
 use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
 use fontdue::Font;
 use image::{ImageBuffer, Rgba};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use tracing::{span, Level};
 
 static ARIAL_TTF: &[u8] = include_bytes!("../resources/arial.ttf");
-lazy_static! {
-    static ref ARIAL: Font = Font::from_bytes(ARIAL_TTF, fontdue::FontSettings::default()).unwrap();
-}
+static ARIAL: Lazy<Font> =
+    Lazy::new(|| Font::from_bytes(ARIAL_TTF, fontdue::FontSettings::default()).unwrap());
 
 pub struct Canvas {
     pub pixels: Vec<ColorValue>,
@@ -70,9 +69,13 @@ impl Canvas {
     pub fn render(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
         let span = span!(Level::DEBUG, "Rendering to pixel buffer");
         let _enter = span.enter();
-        let (w, h) = (self.width as u32, self.height as u32);
-        let buffer: Vec<image::Rgba<u8>> = self.pixels.iter().map(color_to_pix).collect();
-        image::ImageBuffer::from_fn(w, h, |x, y| buffer[(y * w + x) as usize])
+        let (w, h) = (self.width, self.height);
+        let buffer: Vec<Rgba<u8>> = self.pixels.iter().map(color_to_pix).collect();
+        assert_eq!(w * h, buffer.len());
+        // SAFETY: We've asserted that w*h won't go out of bounds
+        image::ImageBuffer::from_fn(w as u32, h as u32, |x, y| unsafe {
+            *buffer.get_unchecked(y as usize * w + x as usize)
+        })
     }
 }
 
