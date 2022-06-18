@@ -3,8 +3,10 @@
 use super::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until};
-use nom::character::complete::{alphanumeric1, char, digit1, multispace0, multispace1, one_of};
-use nom::combinator::{consumed, map, opt, peek, value, verify};
+use nom::character::complete::{
+    alphanumeric1, char as chr, digit1, multispace0, multispace1, one_of,
+};
+use nom::combinator::{map, opt, peek, recognize, value, verify};
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{AsChar, IResult};
@@ -34,7 +36,7 @@ fn import(input: &str) -> IResult<&str, &str> {
         tag_no_case("@import"),
         multispace0,
         alt((string, uri)),
-        char(';'),
+        chr(';'),
     ))(input)?;
     Ok((input, url))
 }
@@ -51,7 +53,7 @@ fn test_import() {
 /// Parse a 'charset' statement
 fn charset(input: &str) -> IResult<&str, &str> {
     map(
-        tuple((tag("@charset"), ws, string, ws, char(';'), ws)),
+        tuple((tag("@charset"), ws, string, ws, chr(';'), ws)),
         |t| t.2,
     )(input)
 }
@@ -60,25 +62,25 @@ fn charset(input: &str) -> IResult<&str, &str> {
 fn string(input: &str) -> IResult<&str, &str> {
     /// Parse double-quoted string
     fn string1(input: &str) -> IResult<&str, &str> {
-        let (input, (_, (content, _), _)) = tuple((
-            char('"'),
-            consumed(many0(alt((
+        let (input, (_, content, _)) = tuple((
+            chr('"'),
+            recognize(many0(alt((
                 is_not("\n\r\\\""),
                 alt((tag("\\n"), tag("\\r"))),
             )))),
-            char('"'),
+            chr('"'),
         ))(input)?;
         Ok((input, content))
     }
     /// Parse single-quoted string
     fn string2(input: &str) -> IResult<&str, &str> {
-        let (input, (_, (content, _), _)) = tuple((
-            char('\''),
-            consumed(many0(alt((
+        let (input, (_, content, _)) = tuple((
+            chr('\''),
+            recognize(many0(alt((
                 is_not("\n\r\\'"),
                 alt((tag("\\n"), tag("\\r"))),
             )))),
-            char('\''),
+            chr('\''),
         ))(input)?;
         Ok((input, content))
     }
@@ -104,8 +106,7 @@ fn test_string() {
 fn ruleset(input: &str) -> IResult<&str, Ruleset> {
     let (input, selectors) = selector_group(input)?;
     let (input, _) = ws(input)?;
-    let (input, body) =
-        delimited(pair(char('{'), ws), take_until("}"), pair(char('}'), ws))(input)?;
+    let (input, body) = delimited(pair(chr('{'), ws), take_until("}"), pair(chr('}'), ws))(input)?;
     let (input, _) = ws(input)?;
     if let Ok((_, declarations)) = declaration_list(body) {
         Ok((
@@ -150,7 +151,7 @@ selectors split by combinators are more complex and represent relationships ('h1
 fn selector_group(input: &str) -> IResult<&str, Vec<Selector>> {
     let (input, (first, rest)) = pair(
         selector,
-        map(many0(tuple((char(','), ws, selector))), |v| {
+        map(many0(tuple((chr(','), ws, selector))), |v| {
             v.into_iter().map(|t| t.2).collect::<Vec<Selector>>()
         }),
     )(input)?;
@@ -282,10 +283,7 @@ fn combinator(input: &str) -> IResult<&str, Combinator> {
 }
 
 fn make_selector<'a>(c: char) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
-    let a = pair(char(c), name);
-    let b = consumed(a);
-    let c = |(inp, _)| inp;
-    map(b, c)
+    recognize(pair(chr(c), name))
 }
 
 fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
@@ -324,10 +322,10 @@ fn simple_selector(input: &str) -> SimpleSelector {
 /// Parse list of declarations
 fn declaration_list(input: &str) -> IResult<&str, Vec<Declaration>> {
     let (input, (_, first, _, rest)) = tuple((
-        many0(pair(char(';'), ws)),
+        many0(pair(chr(';'), ws)),
         declaration,
         ws,
-        many0(map(tuple((char(';'), ws, opt(declaration))), |t| t.2)),
+        many0(map(tuple((chr(';'), ws, opt(declaration))), |t| t.2)),
     ))(input)?;
     Ok((
         input,
@@ -341,7 +339,7 @@ fn declaration_list(input: &str) -> IResult<&str, Vec<Declaration>> {
 /// Parse single declaration
 fn declaration(input: &str) -> IResult<&str, Declaration> {
     let (input, (prop, _, _, value, _)) =
-        tuple((property, char(':'), ws, expr, opt(priority)))(input)?;
+        tuple((property, chr(':'), ws, expr, opt(priority)))(input)?;
     Ok((input, Declaration { name: prop, value }))
 }
 
@@ -402,7 +400,7 @@ fn number(input: &str) -> IResult<&str, Value> {
     Ok((input, Value::Number(val)))
 }
 fn percentage(input: &str) -> IResult<&str, Value> {
-    let (input, (sign, number, _)) = tuple((opt(one_of("+-")), digit1, char('%')))(input)?;
+    let (input, (sign, number, _)) = tuple((opt(one_of("+-")), digit1, chr('%')))(input)?;
     let sign = sign.unwrap_or('+');
     let val = format!("{}{}", sign, number).parse().unwrap();
     Ok((input, Value::Percentage(val)))
@@ -477,7 +475,7 @@ fn hexcolor(input: &str) -> IResult<&str, Value> {
         }),
         is_hex_str,
     );
-    let (input, hex_val) = preceded(char('#'), alt((long_form, short_form)))(input)?;
+    let (input, hex_val) = preceded(chr('#'), alt((long_form, short_form)))(input)?;
     // We should be provided a string of length 3 or 6, with 3 being promoted to 6
     assert_eq!(hex_val.len(), 6);
     let hex_val: Vec<char> = hex_val.chars().collect();
@@ -511,7 +509,7 @@ fn _calc(_input: &str) -> IResult<&str, Value> {
 }
 fn function(input: &str) -> IResult<&str, FunctionValue> {
     let (input, (name, _, _, args, _, _)) =
-        tuple((ident, char('('), ws, expr, char(')'), ws))(input)?;
+        tuple((ident, chr('('), ws, expr, chr(')'), ws))(input)?;
     if let Value::Multiple(v) = args {
         let value = v.0;
         if value.len() == 1 {
@@ -539,7 +537,7 @@ fn function(input: &str) -> IResult<&str, FunctionValue> {
 }
 
 fn operator(input: &str) -> IResult<&str, Operator> {
-    let (input, (op, _)) = pair(alt((char('/'), char(','), char(' '), char('='))), ws)(input)?;
+    let (input, (op, _)) = pair(alt((chr('/'), chr(','), chr(' '), chr('='))), ws)(input)?;
     let op = match op {
         '/' => Operator::Slash,
         ',' => Operator::Comma,
@@ -600,22 +598,21 @@ fn uri(input: &str) -> IResult<&str, &str> {
 /// Parse name
 fn name(input: &str) -> IResult<&str, &str> {
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, (vals, _)) = consumed(many1(nmchar))(input)?;
+    let (input, vals) = recognize(many1(nmchar))(input)?;
     Ok((input, vals))
 }
 /// Parse ident
 fn ident(input: &str) -> IResult<&str, &str> {
     let nmstart = alt((alphanumeric1, tag("_")));
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, (identifier, _)) =
-        consumed(tuple((opt(char('-')), nmstart, many0(nmchar))))(input)?;
+    let (input, identifier) = recognize(tuple((opt(chr('-')), nmstart, many0(nmchar))))(input)?;
     Ok((input, identifier))
 }
 /// Parse variable
 fn variable(input: &str) -> IResult<&str, &str> {
     let nmstart = alt((alphanumeric1, tag("_")));
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, (identifier, _)) = consumed(tuple((tag("--"), nmstart, many0(nmchar))))(input)?;
+    let (input, identifier) = recognize(tuple((tag("--"), nmstart, many0(nmchar))))(input)?;
     Ok((input, identifier))
 }
 #[cfg(test)]
