@@ -339,7 +339,7 @@ impl<'a> LayoutBox<'a> {
                 .get("font-size")
                 .and_then(|v| v.try_to_px(self.font_size))
                 .unwrap_or(self.font_size);
-            let mut layout = get_rasterized_layout(s, font_size as f32, &settings);
+            let layout = get_rasterized_layout(s, font_size as f32, &settings);
             let dim = &mut self.dimensions;
             dim.padding.left = 0.0;
             dim.padding.right = 0.0;

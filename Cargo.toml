@@ -9,13 +9,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pico-args = {version = "0.4.2"}
+pico-args = {version = "0.5.0"}
 ureq = "2.4.0"
 url = "2.2.2"
-image = { version = "0.23.14", default-features = false, features = ["png", "jpeg"] }
-fontdue = "0.6.2"
-tracing = "0.1.29"
-tracing-subscriber = {version = "0.3.5"}
+image = { version = "0.24.2", default-features = false, features = ["png", "jpeg"] }
+fontdue = "0.7.2"
+tracing = "0.1.35"
+tracing-subscriber = {version = "0.3.11"}
 css = {path = "css"}
 html = {path = "html"}
 once_cell = "1.12.0"

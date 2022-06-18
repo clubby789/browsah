@@ -41,19 +41,19 @@ pub enum SimpleSelector<'a> {
 #[macro_export]
 macro_rules! simple_selector {
     (#$x:expr) => {
-        SimpleSelector::ID(stringify!($x).to_string())
+        SimpleSelector::ID(stringify!($x))
     };
     (.$x:expr) => {
-        SimpleSelector::Class(stringify!($x).to_string())
+        SimpleSelector::Class(stringify!($x))
     };
     (:$x:expr) => {
-        SimpleSelector::PseudoClass(stringify!($x).to_string())
+        SimpleSelector::PseudoClass(stringify!($x))
     };
     (*) => {
         SimpleSelector::Universal
     };
     ($x:expr) => {
-        SimpleSelector::Type(stringify!($x).to_string())
+        SimpleSelector::Type(stringify!($x))
     };
 }
 

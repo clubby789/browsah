@@ -54,7 +54,7 @@ impl Canvas {
                     ..Default::default()
                 };
 
-                let mut layout = get_rasterized_layout(text, *size as f32, &settings);
+                let layout = get_rasterized_layout(text, *size as f32, &settings);
                 for glyph in layout.glyphs() {
                     let y_start = glyph.y as u32;
                     let x_start = glyph.x as u32;
