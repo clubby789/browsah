@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use tracing::{span, Level};
+use tracing::{info, span, Level};
 use url::Url;
 
 use crate::style::{StyledElement, USER_AGENT_CSS};
@@ -16,10 +16,13 @@ impl<'a> Page<'a> {
     /// Browses to and parses a web page without applying style information (except for the default)
     pub fn browse(url: &str) -> Self {
         let url = Url::parse(url).expect("Could not parse URL");
+        info!("Downloading HTML");
         let resp = Page::get_text_resource(url.as_str()).expect("Could not get page");
+        info!("Parsing HTML");
         let doc = html::document(resp.as_str())
             .expect("Could not parse HTML")
             .1;
+        info!("Constructing page");
         let page = Self::from_dom(doc, url);
         page.style_tree
             .borrow_mut()
@@ -37,6 +40,7 @@ impl<'a> Page<'a> {
     }
 
     pub fn get_stylesheet_text(&self) -> Vec<String> {
+        info!("Getting stylesheets");
         let mut sheets = Vec::new();
         if let Some(head) = self.dom.get_elements_by_name("head", false).get(0) {
             head.get_elements_by_name("link", false)
@@ -61,6 +65,7 @@ impl<'a> Page<'a> {
     }
 
     pub fn get_styles(&'a self, styles: &'a [String]) -> Vec<Stylesheet> {
+        info!("Parsing stylesheets");
         styles
             .iter()
             .filter_map(|s| css::stylesheet(s).ok())
