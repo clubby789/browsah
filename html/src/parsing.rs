@@ -186,7 +186,7 @@ fn text_content(input: &str) -> IResult<&str, DOMContent> {
                 .collect::<String>()
         },
     )(input)?;
-    Ok((input, result.into()))
+    Ok((input, result.as_str().into()))
 }
 
 // <script> and <style>
@@ -199,7 +199,11 @@ fn raw_text_element(input: &str) -> IResult<&str, DOMElement> {
     })(input)?;
     Ok((
         input,
-        DOMElement::new(start.name, Some(start.attributes), vec![content.into()]),
+        DOMElement::new(
+            start.name,
+            Some(start.attributes),
+            vec![content.as_str().into()],
+        ),
     ))
 }
 

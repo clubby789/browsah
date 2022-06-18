@@ -1,26 +1,22 @@
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Stylesheet {
-    pub rules: Vec<Ruleset>,
+pub struct Stylesheet<'a> {
+    pub rules: Vec<Ruleset<'a>>,
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Ruleset {
-    pub selectors: Vec<Selector>,
-    pub declarations: Vec<Declaration>,
+pub struct Ruleset<'a> {
+    pub selectors: Vec<Selector<'a>>,
+    pub declarations: Vec<Declaration<'a>>,
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum Selector {
-    Simple(SimpleSelector),
-    Compound(Vec<SimpleSelector>),
-    Combinator(Box<Selector>, Combinator, Box<Selector>),
+pub enum Selector<'a> {
+    Simple(SimpleSelector<'a>),
+    Compound(Vec<SimpleSelector<'a>>),
+    Combinator(Box<Selector<'a>>, Combinator, Box<Selector<'a>>),
 }
 
 #[derive(PartialEq, Clone, Copy)]
-#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Combinator {
     // ( )
     Descendant,
@@ -33,14 +29,13 @@ pub enum Combinator {
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum SimpleSelector {
-    Type(String),
+pub enum SimpleSelector<'a> {
+    Type(&'a str),
     Universal,
-    Attribute(String),
-    Class(String),
-    PseudoClass(String),
-    ID(String),
+    Attribute(&'a str),
+    Class(&'a str),
+    PseudoClass(&'a str),
+    ID(&'a str),
 }
 
 #[macro_export]
@@ -91,38 +86,33 @@ pub enum AttributeSelector {
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Declaration {
-    pub name: String,
-    pub value: Value,
+pub struct Declaration<'a> {
+    pub name: &'a str,
+    pub value: Value<'a>,
 }
 
 #[allow(dead_code)]
-impl Declaration {
-    pub fn new(name: impl Into<String>, value: Value) -> Self {
-        Self {
-            name: name.into(),
-            value,
-        }
+impl<'a> Declaration<'a> {
+    pub fn new(name: &'a str, value: Value<'a>) -> Self {
+        Self { name, value }
     }
 }
 
 #[allow(dead_code)]
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum Value {
-    Keyword(String),
-    String(String),
-    Url(String),
+pub enum Value<'a> {
+    Keyword(&'a str),
+    String(&'a str),
+    Url(&'a str),
     Number(f64),
     Percentage(f64),
     Length(f64, Unit),
     Color(ColorValue),
-    Function(FunctionValue),
-    Multiple(MultiValue),
+    Function(FunctionValue<'a>),
+    Multiple(MultiValue<'a>),
 }
 
-impl Value {
+impl<'a> Value<'a> {
     /// Attempts to convert this value to a concrete pixel size
     pub fn try_to_px(&self, font_size: f64) -> Option<f64> {
         match self {
@@ -146,7 +136,7 @@ impl Value {
     /// or a valid keyword
     pub fn is_width(&self) -> bool {
         if let Value::Keyword(kw) = self {
-            ["thin", "medium", "thick"].contains(&kw.as_str())
+            ["thin", "medium", "thick"].contains(kw)
         } else {
             matches!(self, Value::Number(..)) || matches!(self, Value::Length(..))
         }
@@ -158,7 +148,7 @@ impl Value {
                 "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge",
                 "inset", "outset",
             ]
-            .contains(&kw.as_str())
+            .contains(kw)
         } else {
             false
         }
@@ -169,9 +159,7 @@ impl Value {
             // TODO: Color keywords
             Value::Keyword(_) => false,
             Value::Color(_) => true,
-            Value::Function(func) => {
-                ["rgb", "rgba", "hsl", "hsla", "hwb"].contains(&func.0.as_str())
-            }
+            Value::Function(func) => ["rgb", "rgba", "hsl", "hsla", "hwb"].contains(&func.0),
             _ => false,
         }
     }
@@ -254,10 +242,9 @@ fn test_interpolate() {
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct MultiValue(pub Vec<(Option<Operator>, Value)>);
+pub struct MultiValue<'a>(pub Vec<(Option<Operator>, Value<'a>)>);
 
-impl MultiValue {
+impl<'a> MultiValue<'a> {
     pub fn is_space_separated(&self) -> bool {
         self.0.iter().all(|v| {
             if let Some(op) = v.0 {
@@ -267,7 +254,7 @@ impl MultiValue {
             }
         })
     }
-    pub fn new_space_seperated(values: &[&Value]) -> Self {
+    pub fn new_space_seperated(values: &[&Value<'a>]) -> Self {
         let mut v = Vec::with_capacity(values.len());
         v.push((None, values[0].clone()));
         v.extend(
@@ -290,21 +277,20 @@ pub enum Operator {
 }
 
 #[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct FunctionValue(String, Vec<Value>);
+pub struct FunctionValue<'a>(&'a str, Vec<Value<'a>>);
 
 mod keywords;
 
 pub use keywords::*;
 
-pub fn keyword_to_value(kw: String) -> Option<Value> {
-    match kw.as_str() {
+pub fn keyword_to_value(kw: &str) -> Option<Value<'static>> {
+    match kw {
         "black" => Some(Value::Color(BLACK)),
         _ => None,
     }
 }
 pub fn function_to_value(func: FunctionValue) -> Option<Value> {
-    match func.0.as_str() {
+    match func.0 {
         "rgb" => {
             let mut args: Vec<u8> = func
                 .1

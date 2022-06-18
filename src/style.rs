@@ -1,6 +1,7 @@
 use css::{stylesheet, Declaration, Ruleset, Selector, SimpleSelector, Stylesheet, Value};
 use html::{DOMAttributes, DOMContent, DOMElement};
 use once_cell::sync::Lazy;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::Sum;
@@ -11,49 +12,57 @@ pub static USER_AGENT_CSS: Lazy<Stylesheet> =
     Lazy::new(|| stylesheet(USER_AGENT_STYLESHEET).unwrap().1);
 
 #[derive(Default, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct StyleMap(HashMap<String, (Value, Specificity)>);
+pub struct StyleMap<'a>(HashMap<&'a str, (Value<'a>, Specificity)>);
 
-impl StyleMap {
-    pub fn get(&self, value: impl Into<String>) -> Option<&Value> {
-        self.0.get(value.into().as_str()).map(|v| &v.0)
+impl<'a> StyleMap<'a> {
+    pub fn get(&self, value: &str) -> Option<&Value> {
+        self.0.get(value).map(|v| &v.0)
     }
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct StyledElement {
+pub struct StyledElement<'a> {
     pub name: String,
     pub attributes: DOMAttributes,
-    pub contents: Vec<StyledContent>,
+    pub contents: Vec<StyledContent<'a>>,
     // The attribute name -> the value along with the specificity of the selector
-    pub styles: StyleMap,
+    pub styles: StyleMap<'a>,
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct StyledString {
-    pub contents: String,
-    pub styles: StyleMap,
+pub struct StyledString<'a> {
+    pub contents: Cow<'a, str>,
+    pub styles: StyleMap<'a>,
 }
 
-impl From<&String> for StyledString {
-    fn from(s: &String) -> Self {
+impl<'a> From<&'a str> for StyledString<'a> {
+    fn from(s: &'a str) -> Self {
         StyledString {
-            contents: s.clone(),
+            contents: Cow::Borrowed(s),
             styles: Default::default(),
         }
     }
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum StyledContent {
-    Element(StyledElement),
-    Text(StyledString),
+impl<'a> From<String> for StyledString<'a> {
+    fn from(s: String) -> Self {
+        StyledString {
+            contents: Cow::Owned(s),
+            styles: Default::default(),
+        }
+    }
 }
 
-impl StyledElement {
+pub enum StyledContent<'a> {
+    Element(StyledElement<'a>),
+    Text(StyledString<'a>),
+}
+
+impl<'a> StyledElement<'a> {
     /// Insert a CSS declaration (key/[`Value`]) only if the [`Specificity`] of the
     /// existing rule for that key is lower (or does not exist)
-    pub fn insert(&mut self, key: String, value: Value, spec: Specificity) {
+    pub fn insert<'b>(&'b mut self, key: &'a str, value: Value<'a>, spec: Specificity)
+    where
+        'a: 'b,
+    {
         // Insert the new declaration only if the attribute is not specified *or*
         // the specificity is lower
         if let Some(&(_, existing)) = self.styles.0.get(&key) {
@@ -126,7 +135,7 @@ impl Add<Specificity> for Specificity {
     }
 }
 
-impl From<&Selector> for Specificity {
+impl<'a> From<&Selector<'a>> for Specificity {
     fn from(sel: &Selector) -> Self {
         match sel {
             Selector::Simple(sel) => sel.into(),
@@ -138,7 +147,7 @@ impl From<&Selector> for Specificity {
     }
 }
 
-impl From<&SimpleSelector> for Specificity {
+impl<'a> From<&SimpleSelector<'a>> for Specificity {
     fn from(sel: &SimpleSelector) -> Self {
         match sel {
             SimpleSelector::Type(_) => (0, 0, 0, 1),
@@ -152,16 +161,16 @@ impl From<&SimpleSelector> for Specificity {
     }
 }
 
-impl From<DOMContent> for StyledContent {
+impl<'a> From<DOMContent> for StyledContent<'a> {
     fn from(content: DOMContent) -> Self {
         match content {
-            DOMContent::Text(s) => StyledContent::Text((&s).into()),
+            DOMContent::Text(s) => StyledContent::Text(s.into()),
             DOMContent::Element(e) => StyledContent::Element(e.into()),
         }
     }
 }
 
-impl From<DOMElement> for StyledElement {
+impl<'a> From<DOMElement> for StyledElement<'a> {
     fn from(element: DOMElement) -> Self {
         Self {
             name: element.name,
@@ -188,18 +197,24 @@ fn element_is_excluded(elt: &DOMElement) -> bool {
     EXCLUDED.contains(&elt.name.as_str())
 }
 
-impl StyledElement {
+impl<'a> StyledElement<'a> {
     /// Iterate over each ruleset in a stylesheet and apply it to the DOM
-    pub fn apply_styles(&mut self, styles: &[Ruleset]) {
-        styles.iter().for_each(|r| {
+    pub fn apply_styles<'b>(&'b mut self, styles: &[Ruleset<'a>])
+    where
+        'a: 'b,
+    {
+        for r in styles {
             self.apply_rule(r);
-        });
+        }
     }
 
     /// Find the highest specificity (if any) selector for a given node and apply it
     /// If this function returns `true`, then the element is not being displayed and should
     /// be deleted by the parent
-    fn apply_rule(&mut self, style: &Ruleset) -> bool {
+    fn apply_rule<'b>(&'b mut self, style: &Ruleset<'a>) -> bool
+    where
+        'a: 'b,
+    {
         if let Some(spec) = style
             .selectors
             .iter()
@@ -207,9 +222,11 @@ impl StyledElement {
             .map(Specificity::from)
             .max()
         {
-            if style.declarations.iter().any(|decl| {
-                decl.name.as_str() == "display" && decl.value == Value::Keyword("none".to_string())
-            }) {
+            if style
+                .declarations
+                .iter()
+                .any(|decl| decl.name == "display" && decl.value == Value::Keyword("none"))
+            {
                 return true;
             }
             // Styles will be inherited by children
@@ -256,7 +273,7 @@ impl StyledElement {
     }
 
     /// Check if the `class` attribute is present and contains the specified class
-    fn has_class(&self, class: impl Into<String>) -> bool {
+    fn has_class(&self, class: &str) -> bool {
         let class: String = class.into();
         self.attributes
             .0
@@ -266,7 +283,7 @@ impl StyledElement {
     }
 
     /// Check if the `id` attribute exists and is an exact match for the provided ID
-    fn id_is(&self, id: impl Into<String>) -> bool {
+    fn id_is(&self, id: &str) -> bool {
         let id: String = id.into();
         self.attributes
             .0
@@ -278,16 +295,18 @@ impl StyledElement {
     /// Apply a list of [`Declaration`]s to a node and all its children recursively
     /// `inherit_all`: Whether to apply *every* declaration to children. If this is `false`, only
     /// properties specified in [value@INHERITED] will be applied recursively
-    fn apply_rule_unconditionally(
-        &mut self,
-        declarations: &[Declaration],
+    fn apply_rule_unconditionally<'b>(
+        &'b mut self,
+        declarations: &[Declaration<'a>],
         spec: Specificity,
         inherit_all: bool,
-    ) {
-        declarations.iter().for_each(|decl| {
-            let (name, value) = (decl.name.clone(), decl.value.clone());
+    ) where
+        'a: 'b,
+    {
+        for decl in declarations {
+            let (name, value) = (decl.name, decl.value.clone());
             self.insert(name, value, spec);
-        });
+        }
         let inherited: Vec<Declaration> = if inherit_all {
             // If this is true, we aren't in the top level and our declarations have already been
             // filtered
@@ -296,7 +315,7 @@ impl StyledElement {
             declarations
                 .iter()
                 .cloned()
-                .filter(|d| INHERITED.contains(&d.name.as_str()))
+                .filter(|d| INHERITED.contains(&d.name))
                 .collect()
         };
         self.contents.iter_mut().for_each(|content| {

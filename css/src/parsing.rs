@@ -4,7 +4,7 @@ use super::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until};
 use nom::character::complete::{alphanumeric1, char, digit1, multispace0, multispace1, one_of};
-use nom::combinator::{map, opt, peek, value, verify};
+use nom::combinator::{consumed, map, opt, peek, value, verify};
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::{AsChar, IResult};
@@ -29,7 +29,7 @@ pub fn stylesheet(input: &str) -> IResult<&str, Stylesheet> {
 }
 
 /// Parse an 'import' statement
-fn import(input: &str) -> IResult<&str, String> {
+fn import(input: &str) -> IResult<&str, &str> {
     let (input, (_, _, url, _)) = tuple((
         tag_no_case("@import"),
         multispace0,
@@ -49,7 +49,7 @@ fn test_import() {
 }
 
 /// Parse a 'charset' statement
-fn charset(input: &str) -> IResult<&str, String> {
+fn charset(input: &str) -> IResult<&str, &str> {
     map(
         tuple((tag("@charset"), ws, string, ws, char(';'), ws)),
         |t| t.2,
@@ -57,25 +57,29 @@ fn charset(input: &str) -> IResult<&str, String> {
 }
 
 /// Parse quoted string
-fn string(input: &str) -> IResult<&str, String> {
+fn string(input: &str) -> IResult<&str, &str> {
     /// Parse double-quoted string
-    fn string1(input: &str) -> IResult<&str, String> {
-        let (input, (_, content, _)) = tuple((
+    fn string1(input: &str) -> IResult<&str, &str> {
+        let (input, (_, (content, _), _)) = tuple((
             char('"'),
-            many0(alt((is_not("\n\r\\\""), alt((tag("\\n"), tag("\\r")))))),
+            consumed(many0(alt((
+                is_not("\n\r\\\""),
+                alt((tag("\\n"), tag("\\r"))),
+            )))),
             char('"'),
         ))(input)?;
-        let content = content.join("");
         Ok((input, content))
     }
     /// Parse single-quoted string
-    fn string2(input: &str) -> IResult<&str, String> {
-        let (input, (_, content, _)) = tuple((
+    fn string2(input: &str) -> IResult<&str, &str> {
+        let (input, (_, (content, _), _)) = tuple((
             char('\''),
-            many0(alt((is_not("\n\r\\'"), alt((tag("\\n"), tag("\\r")))))),
+            consumed(many0(alt((
+                is_not("\n\r\\'"),
+                alt((tag("\\n"), tag("\\r"))),
+            )))),
             char('\''),
         ))(input)?;
-        let content = content.join("");
         Ok((input, content))
     }
     alt((string1, string2))(input)
@@ -170,7 +174,7 @@ fn selector_sequence(input: &str) -> IResult<&str, Selector> {
     }
 }
 
-fn combinator_selector(input: &str) -> IResult<&str, Selector> {
+fn combinator_selector<'a>(input: &'a str) -> IResult<&str, Selector<'a>> {
     let (input, (first, combinated)) = pair(
         simple_selector_sequence,
         many1(map(
@@ -180,8 +184,9 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
     )(input)?;
 
     // Wrap `combinated` into temporary type so we can make it into a flat array
-    enum Temp {
-        Selector(Vec<SimpleSelector>),
+    #[derive(Clone)]
+    enum Temp<'a> {
+        Selector(Vec<SimpleSelector<'a>>),
         Combinator(Combinator),
     }
     let arr: Vec<Temp> = [Temp::Selector(first)]
@@ -192,9 +197,9 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
                 .flat_map(|(com, sel)| [Temp::Combinator(com), Temp::Selector(sel)]),
         )
         .collect();
-    fn peeler(v: &[Temp]) -> Selector {
+    fn peeler(v: Vec<Temp>) -> Selector {
         if v.len() == 3 {
-            match v {
+            match &v[..] {
                 [Temp::Selector(s1), Temp::Combinator(c), Temp::Selector(s2)] => {
                     combinator_selector!(
                         Selector::Compound(s1.clone()),
@@ -208,13 +213,13 @@ fn combinator_selector(input: &str) -> IResult<&str, Selector> {
             let (start, rest) = v.split_at(2);
             match start {
                 [Temp::Selector(s1), Temp::Combinator(c)] => {
-                    combinator_selector!(Selector::Compound(s1.clone()), *c, peeler(rest))
+                    combinator_selector!(Selector::Compound(s1.clone()), *c, peeler(rest.to_vec()))
                 }
                 _ => unreachable!(),
             }
         }
     }
-    Ok((input, peeler(arr.as_slice())))
+    Ok((input, peeler(arr)))
 }
 
 #[cfg(test)]
@@ -279,19 +284,26 @@ fn combinator(input: &str) -> IResult<&str, Combinator> {
     Ok((input, c))
 }
 
+fn make_selector<'a>(c: char) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
+    let a = pair(char(c), name);
+    let b = consumed(a);
+    let c = |(inp, _)| inp;
+    map(b, c)
+}
+
 fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
-    let hash = map(pair(tag("#"), name), |(a, b)| format!("{}{}", a, b));
-    let class = map(pair(tag("."), ident), |(a, b)| format!("{}{}", a, b));
-    let pseudo = map(pair(tag(":"), ident), |(a, b)| format!("{}{}", a, b));
-    let selectors = alt((hash, class /*attrib*/, pseudo));
+    let selectors = alt((
+        make_selector('#'),
+        make_selector('.'), /*attrib*/
+        make_selector(':'),
+    ));
+    let selectors2 = alt((
+        make_selector('#'),
+        make_selector('.'), /*attrib*/
+        make_selector(':'),
+    ));
 
-    // Hack: Can't reuse FnMut so we just create it twice
-    let hash = map(pair(tag("#"), name), |(a, b)| format!("{}{}", a, b));
-    let class = map(pair(tag("."), ident), |(a, b)| format!("{}{}", a, b));
-    let pseudo = map(pair(tag(":"), ident), |(a, b)| format!("{}{}", a, b));
-    let selectors2 = alt((hash, class /*attrib*/, pseudo));
-
-    let element_or_universal = alt((ident, map(tag("*"), str::to_string)));
+    let element_or_universal = alt((ident, tag("*")));
     let (input, (first, rest)) =
         tuple((alt((element_or_universal, selectors)), many0(selectors2)))(input)?;
     let mut selectors = vec![first];
@@ -299,14 +311,14 @@ fn simple_selector_sequence(input: &str) -> IResult<&str, Vec<SimpleSelector>> {
     Ok((input, selectors.into_iter().map(simple_selector).collect()))
 }
 
-fn simple_selector(input: String) -> SimpleSelector {
+fn simple_selector(input: &str) -> SimpleSelector {
     let mut it = input.chars();
     #[allow(unreachable_code)]
     match it.next().unwrap() {
-        '#' => SimpleSelector::ID(it.collect()),
-        '.' => SimpleSelector::Class(it.collect()),
+        '#' => SimpleSelector::ID(&input[1..]),
+        '.' => SimpleSelector::Class(&input[1..]),
         '*' => SimpleSelector::Universal,
-        ':' => SimpleSelector::PseudoClass(it.collect()),
+        ':' => SimpleSelector::PseudoClass(&input[1..]),
         '[' => SimpleSelector::Attribute(todo!()),
         _ => SimpleSelector::Type(input),
     }
@@ -337,7 +349,7 @@ fn declaration(input: &str) -> IResult<&str, Declaration> {
 }
 
 /// Parse property
-fn property(input: &str) -> IResult<&str, String> {
+fn property(input: &str) -> IResult<&str, &str> {
     alt((ident, variable))(input)
 }
 
@@ -585,7 +597,7 @@ fn ws(input: &str) -> IResult<&str, ()> {
     )(input)
 }
 /// Parse URI
-fn uri(input: &str) -> IResult<&str, String> {
+fn uri(input: &str) -> IResult<&str, &str> {
     let (input, (_, url, _)) = delimited(
         tag("url("),
         tuple((multispace0, string, multispace0)),
@@ -595,29 +607,24 @@ fn uri(input: &str) -> IResult<&str, String> {
 }
 
 /// Parse name
-fn name(input: &str) -> IResult<&str, String> {
+fn name(input: &str) -> IResult<&str, &str> {
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, vals) = many1(nmchar)(input)?;
-    Ok((input, vals.join("")))
+    let (input, (vals, _)) = consumed(many1(nmchar))(input)?;
+    Ok((input, vals))
 }
 /// Parse ident
-fn ident(input: &str) -> IResult<&str, String> {
+fn ident(input: &str) -> IResult<&str, &str> {
     let nmstart = alt((alphanumeric1, tag("_")));
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, (pref, start, rest)) = tuple((opt(char('-')), nmstart, many0(nmchar)))(input)?;
-    let pref = match pref {
-        Some(c) => c.to_string(),
-        None => "".to_string(),
-    };
-    let identifier = format!("{}{}{}", pref, start, rest.into_iter().collect::<String>());
+    let (input, (identifier, _)) =
+        consumed(tuple((opt(char('-')), nmstart, many0(nmchar))))(input)?;
     Ok((input, identifier))
 }
 /// Parse variable
-fn variable(input: &str) -> IResult<&str, String> {
+fn variable(input: &str) -> IResult<&str, &str> {
     let nmstart = alt((alphanumeric1, tag("_")));
     let nmchar = alt((alphanumeric1, alt((tag("_"), tag("-")))));
-    let (input, (a, b, c)) = tuple((tag("--"), nmstart, many0(nmchar)))(input)?;
-    let identifier = format!("{}{}{}", a, b, c.into_iter().collect::<String>());
+    let (input, (identifier, _)) = consumed(tuple((tag("--"), nmstart, many0(nmchar))))(input)?;
     Ok((input, identifier))
 }
 #[cfg(test)]

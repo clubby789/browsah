@@ -9,27 +9,24 @@ use fontdue::layout::LayoutSettings;
 use std::str::FromStr;
 use tracing::{span, Level};
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct LayoutBox {
+pub struct LayoutBox<'a> {
     pub dimensions: Dimensions,
     box_type: BoxType,
-    pub contents: Vec<LayoutBox>,
-    pub style: StyleMap,
-    pub box_content_type: BoxContentType,
+    pub contents: Vec<LayoutBox<'a>>,
+    pub style: StyleMap<'a>,
+    pub box_content_type: BoxContentType<'a>,
     pub font_size: f64,
-    pub border: Option<Border>,
+    pub border: Option<Border<'a>>,
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(dead_code)]
-pub enum BoxContentType {
+pub enum BoxContentType<'a> {
     Normal,
     Image,
-    Text(String),
+    Text(&'a str),
 }
 
 #[derive(Copy, Clone, Default)]
-#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Dimensions {
     pub content: Rect,
     pub margin: EdgeSizes,
@@ -50,17 +47,16 @@ impl Dimensions {
 }
 
 #[derive(Copy, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
 enum BoxType {
     Block,
     Inline,
     Anonymous,
 }
 
-impl From<&Value> for BoxType {
+impl<'a> From<&Value<'a>> for BoxType {
     fn from(v: &Value) -> Self {
         if let Value::Keyword(k) = v {
-            k.as_str().parse().unwrap_or(BoxType::Block)
+            k.parse().unwrap_or(BoxType::Block)
         } else {
             BoxType::Block
         }
@@ -112,7 +108,7 @@ pub struct EdgeSizes {
     pub bottom: f64,
 }
 
-pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> LayoutBox {
+pub fn create_layout<'a>(root: &'a StyledElement, viewport_size: (usize, usize)) -> LayoutBox<'a> {
     let span = span!(Level::DEBUG, "Creating layout tree");
     let _enter = span.enter();
 
@@ -133,7 +129,7 @@ pub fn create_layout(root: &StyledElement, viewport_size: (usize, usize)) -> Lay
     root_box
 }
 
-fn build_layout_tree(root: &StyledElement) -> LayoutBox {
+fn build_layout_tree<'a>(root: &'a StyledElement) -> LayoutBox<'a> {
     let font_size = if let Some(Value::Number(n)) = root.styles.get("font-size") {
         *n
     } else {
@@ -162,10 +158,7 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                     .unwrap_or(BoxType::Block)
                 {
                     BoxType::Block => root_box.contents.push(build_layout_tree(elt)),
-                    BoxType::Inline => root_box
-                        .get_inline_container()
-                        .contents
-                        .push(build_layout_tree(elt)),
+                    BoxType::Inline => root_box.push_to_inline_container(build_layout_tree(elt)),
                     _ => {}
                 }
             }
@@ -180,13 +173,13 @@ fn build_layout_tree(root: &StyledElement) -> LayoutBox {
                     box_type,
                     contents: vec![],
                     style: root.styles.clone(),
-                    box_content_type: Text(text.contents.clone()),
+                    box_content_type: Text(&text.contents),
                     font_size,
                     border: None,
                 };
                 match box_type {
                     BoxType::Block => root_box.contents.push(the_box),
-                    BoxType::Inline => root_box.get_inline_container().contents.push(the_box),
+                    BoxType::Inline => root_box.push_to_inline_container(the_box),
                     _ => {}
                 }
             }
@@ -210,8 +203,8 @@ fn calculate_font_size(s: &StyleMap, parent_size: f64) -> f64 {
     .unwrap_or(parent_size)
 }
 
-impl LayoutBox {
-    fn new(box_type: BoxType, font_size: f64) -> LayoutBox {
+impl<'a> LayoutBox<'a> {
+    fn new(box_type: BoxType, font_size: f64) -> LayoutBox<'a> {
         LayoutBox {
             box_type,
             contents: vec![],
@@ -232,9 +225,9 @@ impl LayoutBox {
         }
     }
 
-    fn get_inline_container(&mut self) -> &mut LayoutBox {
+    fn push_to_inline_container(&mut self, bx: LayoutBox<'a>) {
         match self.box_type {
-            BoxType::Inline | BoxType::Anonymous => self,
+            BoxType::Inline | BoxType::Anonymous => self.contents.push(bx),
             BoxType::Block => {
                 // If we've just generated an anonymous block box, keep using it.
                 // Otherwise, create a new one.
@@ -247,7 +240,7 @@ impl LayoutBox {
                         .contents
                         .push(LayoutBox::new(BoxType::Anonymous, self.font_size)),
                 }
-                self.contents.last_mut().unwrap()
+                self.contents.last_mut().unwrap().contents.push(bx);
             }
         }
     }
@@ -264,7 +257,7 @@ impl LayoutBox {
             return self.calculate_text_block_width(container);
         }
         let style = &self.style;
-        let auto = Value::Keyword("auto".to_string());
+        let auto = Value::Keyword("auto");
         let default = Value::Number(0.0);
         let mut width = &style.get("width").cloned().unwrap_or_else(|| auto.clone());
         let margins = get_margins(style);
@@ -275,7 +268,7 @@ impl LayoutBox {
         } = margins;
         let border = get_border(style);
         let (border_left, border_right) = (border.left.width.clone(), border.right.width.clone());
-        self.border = Some(border);
+        // TODO: fix lifetimes : self.border = Some(border);
         let Padding {
             left: padding_left,
             right: padding_right,

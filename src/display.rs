@@ -2,14 +2,13 @@ use crate::layout::{BoxContentType, LayoutBox, Rect};
 use crate::style::StyleMap;
 use css::{ColorValue, Value, BLACK, WHITE};
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum DisplayCommand {
+pub enum DisplayCommand<'a> {
     SolidBlock(ColorValue, Rect),
-    Text(String, f64, Rect, ColorValue),
+    Text(&'a str, f64, Rect, ColorValue),
 }
 
 /// Construct list of [`DisplayCommand`]s from a number of drawable [`LayoutBox`]es
-pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
+pub fn build_display_list<'a>(root: &'a LayoutBox) -> Vec<DisplayCommand<'a>> {
     let mut list = vec![render_background(root)];
     list.extend(render_borders(root).unwrap_or_default());
     if let BoxContentType::Text(_) = &root.box_content_type {
@@ -21,7 +20,7 @@ pub fn build_display_list(root: &LayoutBox) -> Vec<DisplayCommand> {
     list
 }
 
-fn get_color_value(style: &StyleMap, attr: impl Into<String>) -> Option<&ColorValue> {
+fn get_color_value<'a>(style: &'a StyleMap, attr: &str) -> Option<&'a ColorValue> {
     style.get(attr).and_then(|val| {
         if let Value::Color(cv) = val {
             Some(cv)
@@ -31,13 +30,13 @@ fn get_color_value(style: &StyleMap, attr: impl Into<String>) -> Option<&ColorVa
     })
 }
 
-fn render_background(root: &LayoutBox) -> DisplayCommand {
+fn render_background<'a>(root: &'a LayoutBox) -> DisplayCommand<'a> {
     let bg = get_color_value(&root.style, "background")
         .unwrap_or_else(|| get_color_value(&root.style, "background-color").unwrap_or(&WHITE));
     DisplayCommand::SolidBlock(*bg, root.dimensions.border_box())
 }
 
-fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
+fn render_borders<'a>(root: &'a LayoutBox) -> Option<Vec<DisplayCommand<'a>>> {
     let mut cmds = Vec::with_capacity(4);
     let dim = root.dimensions;
     let border = dim.border_box();
@@ -86,11 +85,11 @@ fn render_borders(root: &LayoutBox) -> Option<Vec<DisplayCommand>> {
     Some(cmds)
 }
 
-fn render_text(s: &LayoutBox) -> Vec<DisplayCommand> {
+fn render_text<'a>(s: &'a LayoutBox) -> Vec<DisplayCommand<'a>> {
     if let BoxContentType::Text(t) = &s.box_content_type {
         let size = s.font_size;
         vec![DisplayCommand::Text(
-            t.clone(),
+            t,
             size,
             s.dimensions.border_box(),
             BLACK,

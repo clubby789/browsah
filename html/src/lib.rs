@@ -10,13 +10,9 @@ pub struct DOMElement {
 }
 
 impl DOMElement {
-    pub fn new(
-        name: impl Into<String>,
-        attributes: Option<DOMAttributes>,
-        contents: Vec<DOMContent>,
-    ) -> Self {
+    pub fn new(name: &str, attributes: Option<DOMAttributes>, contents: Vec<DOMContent>) -> Self {
         Self {
-            name: name.into().to_lowercase(),
+            name: name.to_lowercase(),
             attributes: attributes.unwrap_or_default(),
             contents,
         }
@@ -71,16 +67,13 @@ pub enum DOMContent {
     Text(String),
     Element(DOMElement),
 }
-impl From<String> for DOMContent {
-    fn from(s: String) -> DOMContent {
-        DOMContent::Text(s)
-    }
-}
+
 impl From<&str> for DOMContent {
-    fn from(s: &str) -> DOMContent {
-        DOMContent::Text(s.into())
+    fn from(s: &str) -> Self {
+        DOMContent::Text(s.to_string())
     }
 }
+
 impl From<DOMElement> for DOMContent {
     fn from(e: DOMElement) -> DOMContent {
         DOMContent::Element(e)

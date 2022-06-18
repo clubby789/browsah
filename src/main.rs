@@ -61,7 +61,14 @@ fn parse_args() -> Result<Args, pico_args::Error> {
 }
 
 fn render_from_url(url: &str, output: String) {
-    let layout = request_url(url);
+    let page = web::Page::browse(url);
+    let stylesheets = page.get_stylesheet_text();
+    let styles = page.get_styles(&stylesheets);
+    for sheet in styles {
+        page.style_tree.borrow_mut().apply_styles(&sheet.rules);
+    }
+    let style = page.style_tree.borrow();
+    let layout = create_layout(&style, (1600, 1080));
     let canvas = paint(
         &layout,
         Rect {
@@ -75,10 +82,4 @@ fn render_from_url(url: &str, output: String) {
     let span = span!(Level::DEBUG, "Saving result");
     let _enter = span.enter();
     img.save(output).expect("Could not save to file");
-}
-
-fn request_url(url: &str) -> LayoutBox {
-    let page = web::Page::browse(url);
-    let style = page.style_tree;
-    create_layout(&style, (1600, 1080))
 }

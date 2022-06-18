@@ -3,7 +3,9 @@ use css::{ColorValue, Value};
 
 /// Takes a `padding`, and converts it to
 /// (`padding-top`, `padding-right`, `padding-bottom`, `padding-left`)
-fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)> {
+fn to_padding_sizes<'a>(
+    padding: &Value<'a>,
+) -> Option<(Value<'a>, Value<'a>, Value<'a>, Value<'a>)> {
     match padding {
         Value::Number(..) | Value::Length(..) => Some((
             padding.clone(),
@@ -55,19 +57,19 @@ fn to_padding_sizes(padding: &Value) -> Option<(Value, Value, Value, Value)> {
 
 /// Takes a `margin`, and converts it to
 /// (`margin-top`, `margin-right`, `margin-bottom`, `margin-left`)
-fn to_margin_sizes(margin: &Value) -> Option<(Value, Value, Value, Value)> {
+fn to_margin_sizes<'a>(margin: &Value<'a>) -> Option<(Value<'a>, Value<'a>, Value<'a>, Value<'a>)> {
     // Same logic as padding
     to_padding_sizes(margin)
 }
 
-pub struct Padding {
-    pub top: Value,
-    pub right: Value,
-    pub bottom: Value,
-    pub left: Value,
+pub struct Padding<'a> {
+    pub top: Value<'a>,
+    pub right: Value<'a>,
+    pub bottom: Value<'a>,
+    pub left: Value<'a>,
 }
-impl Padding {
-    pub fn new(v: (Value, Value, Value, Value)) -> Self {
+impl<'a> Padding<'a> {
+    pub fn new(v: (Value<'a>, Value<'a>, Value<'a>, Value<'a>)) -> Self {
         Self {
             top: v.0,
             right: v.1,
@@ -76,7 +78,7 @@ impl Padding {
         }
     }
 }
-pub fn get_padding(style: &StyleMap) -> Padding {
+pub fn get_padding<'a>(style: &'a StyleMap) -> Padding<'a> {
     let mut padding = Padding::new(style.get("padding").and_then(to_padding_sizes).unwrap_or((
         Value::Number(0.0),
         Value::Number(0.0),
@@ -98,15 +100,14 @@ pub fn get_padding(style: &StyleMap) -> Padding {
     padding
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Margin {
-    pub top: Value,
-    pub right: Value,
-    pub bottom: Value,
-    pub left: Value,
+pub struct Margin<'a> {
+    pub top: Value<'a>,
+    pub right: Value<'a>,
+    pub bottom: Value<'a>,
+    pub left: Value<'a>,
 }
-impl Margin {
-    pub fn new(v: (Value, Value, Value, Value)) -> Self {
+impl<'a> Margin<'a> {
+    pub fn new(v: (Value<'a>, Value<'a>, Value<'a>, Value<'a>)) -> Self {
         Self {
             top: v.0,
             right: v.1,
@@ -115,7 +116,7 @@ impl Margin {
         }
     }
 }
-pub fn get_margins(style: &StyleMap) -> Margin {
+pub fn get_margins<'a>(style: &'a StyleMap) -> Margin<'a> {
     let mut margin = Margin::new(style.get("margin").and_then(to_margin_sizes).unwrap_or((
         Value::Number(0.0),
         Value::Number(0.0),
@@ -138,21 +139,19 @@ pub fn get_margins(style: &StyleMap) -> Margin {
 }
 
 #[derive(Default)]
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Border {
-    pub left: BorderSide,
-    pub right: BorderSide,
-    pub top: BorderSide,
-    pub bottom: BorderSide,
+pub struct Border<'a> {
+    pub left: BorderSide<'a>,
+    pub right: BorderSide<'a>,
+    pub top: BorderSide<'a>,
+    pub bottom: BorderSide<'a>,
 }
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub struct BorderSide {
-    pub width: Value,
-    pub style: Value,
-    pub color: Value,
+pub struct BorderSide<'a> {
+    pub width: Value<'a>,
+    pub style: Value<'a>,
+    pub color: Value<'a>,
 }
 
-impl Default for BorderSide {
+impl Default for BorderSide<'_> {
     fn default() -> Self {
         // Placeholders
         Self {
@@ -165,7 +164,7 @@ impl Default for BorderSide {
 
 /// Constructs a [`Border`] from the properties:
 /// * `border`, `border-<side>`, `border-<side>-<width>`
-pub fn get_border(style: &StyleMap) -> Border {
+pub fn get_border<'a>(style: &'a StyleMap) -> Border<'a> {
     let mut border = Border::default();
 
     if let Some(val) = style.get("border") {
@@ -206,7 +205,7 @@ pub fn get_border(style: &StyleMap) -> Border {
 }
 
 /// Takes a `border-<side>` and returns a [`BorderSide`]
-fn to_border_side(val: &Value) -> BorderSide {
+fn to_border_side<'a>(val: &'a Value) -> BorderSide<'a> {
     match val {
         Value::Multiple(mv) => {
             if !mv.is_space_separated() {
@@ -240,7 +239,7 @@ fn to_border_side(val: &Value) -> BorderSide {
 
 /// Tries to extract a `border-width`, `border-style` and `border-color` from the `border` property
 /// These can appear in any order
-fn process_border(val: &Value) -> (Option<Value>, Option<Value>, Option<Value>) {
+fn process_border<'a>(val: &'a Value) -> (Option<Value<'a>>, Option<Value<'a>>, Option<Value<'a>>) {
     if let Value::Multiple(mv) = val {
         if !mv.is_space_separated() {
             return (None, None, None);
