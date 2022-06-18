@@ -1,22 +1,22 @@
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Stylesheet<'a> {
     pub rules: Vec<Ruleset<'a>>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Ruleset<'a> {
     pub selectors: Vec<Selector<'a>>,
     pub declarations: Vec<Declaration<'a>>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Selector<'a> {
     Simple(SimpleSelector<'a>),
     Compound(Vec<SimpleSelector<'a>>),
     Combinator(Box<Selector<'a>>, Combinator, Box<Selector<'a>>),
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Combinator {
     // ( )
     Descendant,
@@ -28,7 +28,7 @@ pub enum Combinator {
     SubsequentSibling,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum SimpleSelector<'a> {
     Type(&'a str),
     Universal,
@@ -85,7 +85,7 @@ pub enum AttributeSelector {
     Begins(String, String),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Declaration<'a> {
     pub name: &'a str,
     pub value: Value<'a>,
@@ -99,7 +99,7 @@ impl<'a> Declaration<'a> {
 }
 
 #[allow(dead_code)]
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Value<'a> {
     Keyword(&'a str),
     String(&'a str),
@@ -227,21 +227,7 @@ impl ColorValue {
     }
 }
 
-#[cfg(test)]
-#[test]
-fn test_interpolate() {
-    let white = ColorValue::new(&[255, 255, 255, 255]);
-    let black = ColorValue::new(&[0, 0, 0, 255]);
-
-    assert_eq!(interpolate_color(white, black, 1.0), black);
-    assert_eq!(
-        interpolate_color(white, black, 0.5),
-        ColorValue::new(&[128, 128, 128, 255])
-    );
-    assert_eq!(interpolate_color(white, black, 0.0), white);
-}
-
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct MultiValue<'a>(pub Vec<(Option<Operator>, Value<'a>)>);
 
 impl<'a> MultiValue<'a> {
@@ -276,20 +262,25 @@ pub enum Operator {
     Equals = b'=',
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct FunctionValue<'a>(&'a str, Vec<Value<'a>>);
 
 mod keywords;
 
 pub use keywords::*;
 
-pub fn keyword_to_value(kw: &str) -> Option<Value<'static>> {
+/// Takes a CSS keyword and returns a Value. If the keyword is implemented,
+/// the proper value will be returned. Otherwise, it will be returned as a Value::Keyword
+pub fn keyword_to_value(kw: &str) -> Value {
     match kw {
-        "black" => Some(Value::Color(BLACK)),
-        _ => None,
+        "black" => Value::Color(BLACK),
+        _ => Value::Keyword(kw),
     }
 }
-pub fn function_to_value(func: FunctionValue) -> Option<Value> {
+
+/// Takes a CSS function call and returns a Value. If the function is implemented,
+/// the proper value will be returned. Otherwise, it will be returned as a Value::FunctionValue
+pub fn function_to_value(func: FunctionValue) -> Value {
     match func.0 {
         "rgb" => {
             let mut args: Vec<u8> = func
@@ -305,7 +296,7 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
                 })
                 .collect();
             args.push(255);
-            Some(Value::Color(ColorValue::new(args.as_slice())))
+            Value::Color(ColorValue::new(args.as_slice()))
         }
         "rgba" => {
             let args: Vec<u8> = func
@@ -320,9 +311,9 @@ pub fn function_to_value(func: FunctionValue) -> Option<Value> {
                     }
                 })
                 .collect();
-            Some(Value::Color(ColorValue::new(args.as_slice())))
+            Value::Color(ColorValue::new(args.as_slice()))
         }
-        _ => None,
+        _ => Value::Function(func),
     }
 }
 

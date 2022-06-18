@@ -29,10 +29,7 @@ body {
         rules: vec![
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(html))],
-                declarations: vec![Declaration::new(
-                    "box-sizing",
-                    Value::Keyword("border-box".to_string()),
-                )],
+                declarations: vec![Declaration::new("box-sizing", Value::Keyword("border-box"))],
             },
             Ruleset {
                 selectors: vec![
@@ -40,10 +37,7 @@ body {
                     Selector::Compound(vec![simple_selector!(*), simple_selector!(:before)]),
                     Selector::Compound(vec![simple_selector!(*), simple_selector!(:after)]),
                 ],
-                declarations: vec![Declaration::new(
-                    "box-sizing",
-                    Value::Keyword("inherit".to_string()),
-                )],
+                declarations: vec![Declaration::new("box-sizing", Value::Keyword("inherit"))],
             },
             Ruleset {
                 selectors: vec![Selector::Simple(simple_selector!(html))],

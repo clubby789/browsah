@@ -42,7 +42,7 @@ fn import(input: &str) -> IResult<&str, &str> {
 #[test]
 fn test_import() {
     let i = r#"@import "navigation.css";"#;
-    let target = Ok(("", "navigation.css".to_string()));
+    let target = Ok(("", "navigation.css"));
     assert_eq!(import(i), target);
     let i = r#"@import url("navigation.css");"#;
     assert_eq!(import(i), target);
@@ -88,15 +88,15 @@ fn string(input: &str) -> IResult<&str, &str> {
 #[test]
 fn test_string() {
     let i = r#""Hello, world""#;
-    let target = ("", "Hello, world".to_string());
+    let target = ("", "Hello, world");
     assert_eq!(string(i).unwrap(), target);
 
     let i = "'Hello, world'";
-    let target = ("", "Hello, world".to_string());
+    let target = ("", "Hello, world");
     assert_eq!(string(i).unwrap(), target);
 
     let i = r#""Hello\nworld""#;
-    let target = ("", "Hello\\nworld".to_string());
+    let target = ("", "Hello\\nworld");
     assert_eq!(string(i).unwrap(), target);
 }
 
@@ -134,10 +134,7 @@ fn test_ruleset() {
 }"#;
     let target = Ruleset {
         selectors: vec![Selector::Simple(simple_selector!(html))],
-        declarations: vec![Declaration::new(
-            "box-sizing",
-            Value::Keyword("border-box".to_string()),
-        )],
+        declarations: vec![Declaration::new("box-sizing", Value::Keyword("border-box"))],
     };
     assert_eq!(ruleset(i), Ok(("", target)));
 }
@@ -370,13 +367,13 @@ fn expr(input: &str) -> IResult<&str, Value> {
 #[cfg(test)]
 #[test]
 fn test_expr() {
-    use crate::css::Value::{Keyword, Length};
+    use crate::Value::{Keyword, Length};
     let i = "5em auto";
     let target = Ok((
         "",
         Value::Multiple(MultiValue(vec![
             (None, Length(5.0, Unit::Em)),
-            (Some(Operator::Space), Keyword("auto".to_string())),
+            (Some(Operator::Space), Keyword("auto")),
         ])),
     ));
     assert_eq!(expr(i), target);
@@ -385,12 +382,12 @@ fn test_expr() {
 /// Parse a term
 fn term(input: &str) -> IResult<&str, Value> {
     alt((
-        function,
+        map(function, function_to_value),
         percentage,
         dimension,
         number,
         map(string, Value::String),
-        map(ident, Value::Keyword),
+        map(ident, keyword_to_value),
         map(variable, Value::Keyword),
         map(uri, Value::Url),
         hexcolor,
@@ -512,7 +509,7 @@ fn test_hexcolor() {
 fn _calc(_input: &str) -> IResult<&str, Value> {
     todo!()
 }
-fn function(input: &str) -> IResult<&str, Value> {
+fn function(input: &str) -> IResult<&str, FunctionValue> {
     let (input, (name, _, _, args, _, _)) =
         tuple((ident, char('('), ws, expr, char(')'), ws))(input)?;
     if let Value::Multiple(v) = args {
@@ -521,10 +518,7 @@ fn function(input: &str) -> IResult<&str, Value> {
             // Just a single value
             Ok((
                 input,
-                Value::Function(FunctionValue(
-                    name,
-                    value.into_iter().map(|v| v.1).collect(),
-                )),
+                FunctionValue(name, value.into_iter().map(|v| v.1).collect()),
             ))
         } else if value[1..]
             .iter()
@@ -533,17 +527,14 @@ fn function(input: &str) -> IResult<&str, Value> {
             // A comma-separated argument list
             Ok((
                 input,
-                Value::Function(FunctionValue(
-                    name,
-                    value.into_iter().map(|v| v.1).collect(),
-                )),
+                FunctionValue(name, value.into_iter().map(|v| v.1).collect()),
             ))
         } else {
             // Not comma separated? Bail lol
             unimplemented!()
         }
     } else {
-        Ok((input, Value::Function(FunctionValue(name, vec![args]))))
+        Ok((input, FunctionValue(name, vec![args])))
     }
 }
 
@@ -570,11 +561,11 @@ fn test_declaration_list() {
 background-color: rgb(197,93,161)"#;
     let target = vec![
         Declaration {
-            name: "color".to_string(),
+            name: "color",
             value: Value::Color(BLACK),
         },
         Declaration {
-            name: "background-color".to_string(),
+            name: "background-color",
             value: Value::Color(ColorValue {
                 r: 197,
                 g: 93,
@@ -631,7 +622,7 @@ fn variable(input: &str) -> IResult<&str, &str> {
 #[test]
 fn test_name() {
     let i = "hello";
-    let target = ("", "hello".to_string());
+    let target = ("", "hello");
     assert_eq!(name(i).unwrap(), target);
 
     let i = "~hello";
