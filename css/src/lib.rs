@@ -71,8 +71,7 @@ macro_rules! combinator_selector {
 
 // [att]
 #[allow(dead_code)]
-#[derive(PartialEq, Clone)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Clone, Debug)]
 pub enum AttributeSelector {
     // [att]
     Has(String),
@@ -166,8 +165,7 @@ impl<'a> Value<'a> {
 }
 
 #[allow(dead_code)]
-#[derive(PartialEq, Clone, Copy)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Unit {
     Cm,
     Mm,
@@ -187,8 +185,7 @@ pub enum Unit {
     Vmax,
 }
 
-#[derive(PartialEq, Clone, Copy)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub struct ColorValue {
     pub r: u8,
     pub g: u8,
@@ -252,8 +249,7 @@ impl<'a> MultiValue<'a> {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum Operator {
     Slash = b'/',

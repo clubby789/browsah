@@ -76,8 +76,7 @@ impl<'a> StyledElement<'a> {
 }
 
 // Attrs, IDs, Classes, Elements
-#[derive(PartialEq, Copy, Clone, Default, Eq)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Copy, Clone, Default, Eq, Debug)]
 pub struct Specificity(usize, usize, usize, usize);
 
 impl From<(usize, usize, usize, usize)> for Specificity {

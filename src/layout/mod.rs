@@ -80,8 +80,7 @@ impl FromStr for BoxType {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct Rect {
     pub x: f64,
     pub y: f64,
